@@ -1,0 +1,41 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+
+namespace WebApplication1.App_Start
+{
+    public static class BundlesFormats
+    { 
+        private const string template = @"<link href=""{0}"" ";
+
+        private const string template2 = @"rel=""stylesheet"" type=""text/css"" media=""{0}"" />";
+
+        public static string Print
+        {
+            get
+            {
+                return template + String.Format(template2, "print");
+            }
+        }
+
+        public static string Screen
+        {
+            get
+            {
+                return template + String.Format(template2, "Screen,print");
+            }
+        }
+
+        public static string HandHeld
+        {
+            get
+            {
+                return template + String.Format(@"rel=""stylesheet"" type=""text/css"" media=""print"" />", "handheld");
+            }
+        }
+    }
+}
+  <asp:PlaceHolder runat="server">  
+   <%: Styles.RenderFormat(WebApplication1.App_Start.BundlesFormats.Screen,"~/Content/css") %> 
+      </asp:PlaceHolder>

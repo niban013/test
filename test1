@@ -1,41 +1,563 @@
+using AjaxControlToolkit;
+using Microsoft.AspNet.SignalR;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
 
-namespace WebApplication1.App_Start
+namespace WebApplication3
 {
-    public static class BundlesFormats
-    { 
-        private const string template = @"<link href=""{0}"" ";
-
-        private const string template2 = @"rel=""stylesheet"" type=""text/css"" media=""{0}"" />";
-
-        public static string Print
+    public partial class WebForm1 : System.Web.UI.Page
+    {
+        DataTable dtReport;
+        protected void Page_Load(object sender, EventArgs e)
         {
-            get
+            ScriptManager scriptManager = ScriptManager.GetCurrent(this.Page);
+            scriptManager.RegisterPostBackControl(this.Button1);
+
+            dtReport = new DataTable("MES_WIP_LOT");
+            dtReport.Columns.Add("Customer");
+            dtReport.Columns.Add("date");
+
+            DataRow dr;
+            dr = dtReport.NewRow();
+            dr["Customer"] = "55555555555";
+            dr["date"] = DateTime.Now.ToString();
+
+            dtReport.Rows.Add(dr);
+            GridView1.DataSource = dtReport;
+            GridView1.DataBind();
+        }
+
+        protected void Unnamed1_Click(object sender, EventArgs e)
+        {
+            var context = GlobalHost.ConnectionManager.GetConnectionContext<MyConnection>();
+            //由伺服器端主動發訊息
+            context.Connection.Broadcast("aa", "gygy");
+        }
+
+        protected void GridView1_RowCommand(object sender, GridViewCommandEventArgs e)
+        {
+            if (e.CommandName.ToString() == "Select")
             {
-                return template + String.Format(template2, "print");
+                TabContainer1.ActiveTabIndex = 0;
+            }
+        }
+        protected void TabContainer1_ActiveTabChanged(object sender, EventArgs e)
+        {
+            TabContainer container = sender as TabContainer;
+            if (container.ActiveTabIndex == 1)
+            {
+                //doStuff			
             }
         }
 
-        public static string Screen
+        protected void Button1_Click(object sender, EventArgs e)
         {
-            get
-            {
-                return template + String.Format(template2, "Screen,print");
-            }
+            // TabContainer1.ActiveTabIndex = 0;
+            ExporttoExcel(dtReport, dtReport.TableName);
         }
 
-        public static string HandHeld
+
+        public void ExporttoExcel(DataTable table, string filename)
         {
-            get
+            HttpContext.Current.Response.Clear();
+            HttpContext.Current.Response.ClearContent();
+            HttpContext.Current.Response.ClearHeaders();
+            HttpContext.Current.Response.Buffer = true;
+            HttpContext.Current.Response.ContentEncoding = System.Text.Encoding.UTF8;
+            HttpContext.Current.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+            HttpContext.Current.Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            HttpContext.Current.Response.AddHeader("content-disposition", "attachment;filename=GridData.xlsx");
+
+
+            using (ExcelPackage pack = new ExcelPackage())
             {
-                return template + String.Format(@"rel=""stylesheet"" type=""text/css"" media=""print"" />", "handheld");
+                ExcelWorksheet ws = pack.Workbook.Worksheets.Add(filename);
+                ws.Cells["A1"].LoadFromDataTable(table, true);
+                var ms = new System.IO.MemoryStream();
+                pack.SaveAs(ms);
+                ms.WriteTo(HttpContext.Current.Response.OutputStream);
             }
+
+            HttpContext.Current.Response.Flush();
+            HttpContext.Current.Response.End();
+
         }
     }
 }
-  <asp:PlaceHolder runat="server">  
-   <%: Styles.RenderFormat(WebApplication1.App_Start.BundlesFormats.Screen,"~/Content/css") %> 
-      </asp:PlaceHolder>
+
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="WebForm1.aspx.cs" Inherits="WebApplication3.WebForm1" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <script type="text/javascript" src="Scripts/jquery-1.6.4.min.js"></script>
+    <script type="text/javascript" src="Scripts/jquery.signalR-1.2.2.min.js"></script>
+    <script type="text/javascript">
+        function htmlEncode(value) {
+            return $("<div/>").text(value).html();
+        }
+
+        function addMsg(msg) {
+            $("#messages").append("<li>" + htmlEncode(msg) + "</li>");
+        }
+
+        $(function () {
+            $("#join").click(function () {
+                var connection = $.connection("/echo", "name=" + $("#name").val(), true);;
+
+                connection.received(function (data) {
+                    addMsg(data);
+                });
+
+                connection.error(function (err) {
+                    addMsg("Error: " + err);
+                });
+
+                addMsg("Connecting...");
+                connection.start(function () {
+                    addMsg("Connected.");
+                    $("#send").click(function () {
+                        connection.send($("#msg").val());
+                    });
+                });
+            });
+        });
+    </script>
+</head>
+
+<body>
+
+    <form id="form1" runat="server">
+        <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
+        <div>
+            <asp:UpdatePanel ID="UpdatePanel1" runat="server">
+                <ContentTemplate>
+                    <ajaxToolkit:TabContainer ID="TabContainer1" runat="server" Height="150px" ActiveTabIndex="1" OnActiveTabChanged="TabContainer1_ActiveTabChanged" AutoPostBack="true">
+                        <ajaxToolkit:TabPanel ID="TabPanel1" runat="server" HeaderText="TabPanel1">
+                            <ContentTemplate>
+                                Content1 
+                            </ContentTemplate>
+                        </ajaxToolkit:TabPanel>
+                        <ajaxToolkit:TabPanel ID="TabPanel2" runat="server" HeaderText="TabPanel2">
+                            <ContentTemplate>
+                                <asp:Button ID="Button1" runat="server" Text="Button" OnClick="Button1_Click" />
+                                <asp:GridView ID="GridView1" runat="server" OnRowCommand="GridView1_RowCommand">
+                                    <Columns>
+                                        <asp:BoundField DataField="Customer" HeaderText="Code" SortExpression="Code">
+                                            <ItemStyle Width="100px" />
+                                        </asp:BoundField>
+                                        <asp:CommandField ShowSelectButton="True" SelectText="select" ButtonType="Button"></asp:CommandField>
+                                    </Columns>
+                                </asp:GridView>
+
+                            </ContentTemplate>
+
+                        </ajaxToolkit:TabPanel>
+                    </ajaxToolkit:TabContainer>
+                </ContentTemplate>
+            </asp:UpdatePanel>
+
+
+            <asp:UpdatePanel ID="UpdatePanel2" runat="server" UpdateMode="Always">
+                <ContentTemplate>
+                    <% =DateTime.Now.ToString()%>
+                    <asp:Button ID="Button2" runat="server" Text="UpdatePanelButton" />
+                </ContentTemplate>
+                <Triggers>
+               
+                     <asp:AsyncPostBackTrigger ControlID="Button2"/>
+                </Triggers>
+            </asp:UpdatePanel>
+            <br />
+            <% =DateTime.Now.ToString()%>
+            <asp:Button ID="Button3" runat="server" Text="Button" />
+        </div>
+        <div>
+            <table>
+                <tr>
+                    <td><span>Name:</span></td>
+                    <td>
+                        <input type="text" id="name" /></td>
+                    <td>
+                        <input type="button" value="Join" id="join" /></td>
+                </tr>
+                <tr>
+                    <td><span>Message:</span></td>
+                    <td>
+                        <input type="text" id="msg" /></td>
+                    <td>
+                        <input type="button" value="Send" id="send" />
+                        <asp:Button runat="server" Text="Button" OnClick="Unnamed1_Click"></asp:Button></td>
+                </tr>
+            </table>
+            <ul id="messages"></ul>
+        </div>
+    </form>
+</body>
+</html>
+using CrystalDecisions.CrystalReports.Engine;
+using CrystalDecisions.Shared;
+using Newtonsoft.Json;
+using System;
+using System.Data;
+using System.Drawing.Printing;
+using System.IO;
+
+namespace WindowsFormsApplication1
+{
+    public class RptPrint: IPrint,IDisposable
+    { 
+        private PrinterSettings _printerSettings;
+        public PrinterSettings printerSettings
+        {
+            get
+            {
+                return _printerSettings;
+            }
+            set
+            {
+                _printerSettings = value;
+            }
+
+        }
+
+        private PageSettings _pageSettings;
+        public PageSettings pageSettings
+        {
+
+            get
+            {
+                return _pageSettings;
+            }
+            set
+            {
+                _pageSettings = value;
+            } 
+        }
+
+        private ReportDocument _reportDocument;
+        public ReportDocument reportDocument
+        { 
+            get
+            {
+                return _reportDocument;
+            }
+            set
+            {
+                _reportDocument = value;
+            }
+        }
+
+
+        private DiskFileDestinationOptions df;
+        public RptPrint()
+        {
+            _reportDocument = new ReportDocument();
+            _pageSettings = new PageSettings();
+            _printerSettings = new PrinterSettings();
+            df = new DiskFileDestinationOptions();
+        }
+        public void print(DataTable dtReport)
+        {
+            var strPath = @"C:\RPT\Standard_RPT.rpt";
+            _reportDocument.Load(strPath);
+            _reportDocument.SetDataSource(dtReport);
+        //    _reportDocument.ExportOptions.ExportDestinationType = CrystalDecisions.Shared.ExportDestinationType.DiskFile;
+        //    _reportDocument.ExportOptions.ExportFormatType = CrystalDecisions.Shared.ExportFormatType.PortableDocFormat;
+       //     _reportDocument.ExportOptions.DestinationOptions = df;
+            _reportDocument.PrintOptions.CopyTo(_printerSettings, _pageSettings);
+            _reportDocument.PrintToPrinter(_printerSettings, _pageSettings, false);
+            Dispose();
+        }
+
+        
+        public void setting()
+        {
+            _pageSettings.PaperSize = new System.Drawing.Printing.PaperSize("Lable", 280, 200);//列印90mm*50mm的標籤紙 
+            _printerSettings.PrinterName = _printerSettings.PrinterName;
+            // printerSettings.PrintRange = PrintRange.AllPages;
+            // printerSettings.Collate = false;
+            _printerSettings.Copies = 1;
+            _pageSettings.PrinterSettings = _printerSettings;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        public void PreView(DataTable dtReport, string strPath)
+        {
+        //    var strPath = @"C:\RPT\Standard_RPT.rpt";
+            df.DiskFileName = @"d:\db\aa.pdf";
+            _reportDocument.Load(strPath);
+            _reportDocument.SetDataSource(dtReport);
+            _reportDocument.ExportOptions.ExportDestinationType = CrystalDecisions.Shared.ExportDestinationType.DiskFile;
+            _reportDocument.ExportOptions.ExportFormatType = CrystalDecisions.Shared.ExportFormatType.PortableDocFormat;
+            _reportDocument.ExportOptions.DestinationOptions = df;
+            _reportDocument.PrintOptions.CopyTo(_printerSettings, _pageSettings);
+            _reportDocument.Export(_reportDocument.ExportOptions);
+            Dispose();  
+        }
+        public string webprint(DataTable dtReport, string strPath, string pdfPath)
+        {
+            string mExportFileName = pdfPath + @"pdf\" + dtReport.TableName + ".pdf";
+            string temp_inBase64 = string.Empty; 
+            // var strPath = @"C:\RPT\Standard_RPT.rpt";
+            _reportDocument.Load(strPath);
+            _reportDocument.SetDataSource(dtReport);
+
+            df.DiskFileName = mExportFileName;
+            _reportDocument.ExportOptions.ExportDestinationType = CrystalDecisions.Shared.ExportDestinationType.DiskFile;
+            _reportDocument.ExportOptions.ExportFormatType = CrystalDecisions.Shared.ExportFormatType.PortableDocFormat;
+            _reportDocument.ExportOptions.DestinationOptions = df;
+            _reportDocument.PrintOptions.CopyTo(_printerSettings, _pageSettings);
+            _reportDocument.Export(_reportDocument.ExportOptions);
+
+
+            MemoryStream inMemoryCopy = new MemoryStream();
+            using (FileStream fs = File.OpenRead(mExportFileName))
+            {
+                fs.CopyTo(inMemoryCopy);
+            }
+            temp_inBase64 = System.Convert.ToBase64String(inMemoryCopy.ToArray());
+            //using (Stream mem = (Stream)_reportDocument.ExportToStream(ExportFormatType.PortableDocFormat))
+            //{
+            //    byte[] result;
+            //    using (var streamReader = new MemoryStream())
+            //    {
+            //        mem.CopyTo(streamReader);
+            //        result = streamReader.ToArray();
+            //    }
+            //    temp_inBase64 = Convert.ToBase64String(result);
+            //}
+            return temp_inBase64;
+        }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _reportDocument = null;
+                _pageSettings = null;
+                _printerSettings = null;
+                df = null;
+            } 
+        }
+
+        // Use C# destructor syntax for finalization code.
+        ~RptPrint()
+        {
+            // Simply call Dispose(false).
+            Dispose(false);
+        }
+    }
+}
+using Microsoft.AspNet.SignalR.Client;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static WindowsFormsApplication2.Form1;
+using AutoUpdaterDotNET;
+using System.Globalization;
+
+namespace WindowsFormsApplication2
+{
+    public partial class Form1 : Form
+    {
+        private System.Windows.Forms.Timer timer1;
+        public void InitTimer()
+        {
+            timer1 = new System.Windows.Forms.Timer();
+            timer1.Tick += new EventHandler(timer1_Tick);
+            timer1.Interval = 2000; // in miliseconds
+            timer1.Start();
+        }
+        Queue myQueue = new Queue();
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            if (myQueue.Count > 0)
+            {
+                MessageBox.Show(myQueue.Dequeue().ToString());
+            }
+        }
+      
+         
+
+        public class TaskInfo
+        {
+            public string[] strArray;
+            public string sLabelType;
+            public string sInputData;
+            public string sHostName;
+            public string sInterVal;
+            public TaskInfo(string[] array, string LabelType, string InputData, string HostName, string InterVal)
+            {
+                strArray = array;
+                sLabelType = LabelType;
+                sInputData = InputData;
+                sHostName = HostName;
+                sInterVal = InterVal;
+            }
+        }
+      
+        public Form1()
+        {
+            InitializeComponent();
+            InitTimer();
+      
+        }
+        void connection_Received(string data)
+        {
+            flag = true;
+            myQueue.Enqueue(data);
+            //TaskInfo ti = new TaskInfo(null, string.Empty, data, string.Empty, "1000");
+            //ThreadPool.QueueUserWorkItem(new WaitCallback(ProcessData), ti);
+        }
+        private const string ServiceUri = "http://localhost:3149/echo";
+        void connection_StateChanged(StateChange state)
+        {
+            if (state.NewState == Microsoft.AspNet.SignalR.Client.ConnectionState.Connected)
+            {
+                //doUICallback(() => {
+                //   label1.Text += string.Format("Connected.");
+                //}); 
+                flag = true;
+                TaskInfo ti = new TaskInfo(null, string.Empty, "Connected.", string.Empty, "1");
+                ThreadPool.QueueUserWorkItem(new WaitCallback(ProcessData), ti);
+            }
+        }
+
+        void start()
+        {
+            flag = true;
+            TaskInfo ti = new TaskInfo(null, string.Empty, " Connecting...", string.Empty, "1");
+            ThreadPool.QueueUserWorkItem(new WaitCallback(ProcessData), ti);
+
+            //   label1.Text += "Connecting...";
+            connection.Start().ContinueWith(
+                task =>
+                {
+                    if (task.IsFaulted)
+                    {
+                        flag = true;
+                        ti = new TaskInfo(null, string.Empty, string.Format("Failed to start: {0}", task.Exception.GetBaseException()), string.Empty, "1");
+                        ThreadPool.QueueUserWorkItem(new WaitCallback(ProcessData), ti);
+                        //doUICallback(() =>
+                        //{
+                        //    //    label1.Text += string.Format("Failed to start: {0}", task.Exception.GetBaseException());
+                        //    //});
+                        //    //    Console.WriteLine("Failed to start: {0}", task.Exception.GetBaseException());
+                    }
+                    else
+                    {
+                        flag = true;
+                        ti = new TaskInfo(null, string.Empty, string.Format("Success! Connected with client connection id {0}", connection.ConnectionId), string.Empty, "1");
+                        ThreadPool.QueueUserWorkItem(new WaitCallback(ProcessData), ti);
+                        ////doUICallback(() => {
+                        //    label1.Text += string.Format("Success! Connected with client connection id {0}", task.Exception.GetBaseException());
+                        //});
+                        //   Console.WriteLine("Success! Connected with client connection id {0}", connection.ConnectionId);
+                        // Do more stuff here
+                    }
+                }).Wait();
+        }
+
+        Connection connection;
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            AutoUpdater.CurrentCulture = CultureInfo.CreateSpecificCulture("zh");
+
+            label1.Text = "Working...";
+
+            connection = new Connection(ServiceUri, "name=dzy");
+            connection.Received += connection_Received;
+            connection.StateChanged += connection_StateChanged;
+
+            start();
+
+
+
+            //Task<string> task = Task.Run(() => {
+            //    Thread.Sleep(5000);
+            //    return "Updated the UI!";
+            //}).ContinueWith(t => label1.Text = t.Result, taskScheduler);
+
+
+        }
+        bool flag = false;
+     
+        private void ProcessData(object stateInfo)
+        {
+            if (flag)
+            {
+                System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                sw.Reset();//碼表歸零
+                sw.Start();//碼表開始計時 
+                TaskInfo t1 = (TaskInfo)stateInfo;
+                for (int i = 0; i < 100; i++)
+                {
+                    var str1 = string.Empty;
+                //var dd = x.test();//  
+                //if (dd[0] == "OK")
+                //{
+                //    str1 = dd[0] + "@" + dd[1].ToString() + "---Times:" + t1.strArray[i].ToString();
+                //}
+                //else
+                //{
+                str1 = t1.sInputData.ToString() + i.ToString();
+                    //}
+                    this.Invoke(new Action(delegate () { label1.Text = str1 + "/100"; }));
+                 //   MyInvoke mi = new MyInvoke(UpdateLab);
+                //使用主緒更新Label 
+              //  Invoke(mi, str1);
+                    Thread.Sleep(Convert.ToInt32(t1.sInterVal) * 1000);
+                }
+                sw.Stop();//碼錶停止   
+                //MessageBox.Show("執行完成:「" + sw.Elapsed.TotalSeconds.ToString("0.00") + "」秒");
+            }
+            else
+            {
+                return;
+            }
+     
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            // myQueue.Enqueue("33333");
+            // Thread.Sleep(5000);
+            flag = true;
+
+            Thread.Sleep(1000);
+            var ti = new TaskInfo(null, string.Empty, string.Format("Failed to start: {0}", ""), string.Empty, "1");
+            ThreadPool.QueueUserWorkItem(new WaitCallback(ProcessData), ti);
+
+            
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            AutoUpdater.Start("http://localhost/zz/pdf/AutoUpdaterTest.xml");
+        }
+    }
+     
+}

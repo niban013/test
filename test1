@@ -559,5 +559,5 @@ namespace WindowsFormsApplication2
             AutoUpdater.Start("http://localhost/zz/pdf/AutoUpdaterTest.xml");
         }
     }
-     
+     http://downloads.businessobjects.com/akdlm/cr4vs2010/CRforVS_13_0_18.exe
 }

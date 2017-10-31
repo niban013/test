@@ -560,4 +560,8 @@ namespace WindowsFormsApplication2
         }
     }
      http://downloads.businessobjects.com/akdlm/cr4vs2010/CRforVS_13_0_18.exe
+        <identity impersonate="true"  userName="honjayChen" password="qweasdzxc"/>
+    <!--<compilation tempDirectory="D:\db" />-->
+  </system.web>
+  <system.webServer> 
 }

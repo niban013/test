@@ -4,7 +4,13 @@
     <supportedRuntime version="v4.0"/>
   </startup>
 </configuration>
+     var js = "<script>  var txtName = window.opener.document.getElementById('TextBox1');"
+                    + "txtName.value = document.getElementById('Label1').innerText;"
+                    + "window.opener.document.getElementById('btnxx').click();</script> ";
 
+
+
+            ScriptManager.RegisterStartupScript(btnOK, btnOK.GetType(), "Print", js, false);
 
 
 using AjaxControlToolkit;

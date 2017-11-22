@@ -1,0 +1,52 @@
+; InstallSimple project
+
+[Setup]
+WindowTitle=InnoLux WMS PrintLabel
+ProductName=WMS PrintLabel
+
+[Graphics]
+SplashScreen=C:\Users\‚ ‚µ‚½‚àŠæ’£‚è‚Ü‚·\Desktop\bb\InstallSimplePortable\images\1.bmp
+SplashScreenDelay=3
+Header=C:\Users\‚ ‚µ‚½‚àŠæ’£‚è‚Ü‚·\Desktop\bb\InstallSimplePortable\images\1.bmp
+HeaderJustify=Right
+HeaderFontColor=0
+WizardBitmap=C:\Users\‚ ‚µ‚½‚àŠæ’£‚è‚Ü‚·\Desktop\bb\InstallSimplePortable\images\1.bmp
+WizardFontColor=0
+
+[FirstMessage]
+This is print label for WMS!!
+[LastMessage]
+Thank you for using our software.
+
+IF any problems,Contact IT WMS programer,Thank you!!
+
+[LicenseAgreement]
+
+[SetupFiles]
+SourceFolder=C:\Users\‚ ‚µ‚½‚àŠæ’£‚è‚Ü‚·\Documents\Visual Studio 2015\Projects\WindowsFormsApplication1\WindowsFormsApplication2\bin\Debug
+SpecialFolder=Program Files
+SetupPath=InnoLuxPrint
+SetupFile=C:\Users\‚ ‚µ‚½‚àŠæ’£‚è‚Ü‚·\Desktop\test.exe
+
+[Shortcuts]
+ProgramGroup=
+InnoLuxPrintLabel.exe=dmp
+
+[Registry]
+[HKEY_CLASSES_ROOT\InnoLuxPrintLabel\shell\open\command]
+@="C:\\Program Files (x86)\\InnoLuxPrint\\InnoLuxPrintLabel.exe /url \"%1\""
+[HKEY_CLASSES_ROOT\InnoLuxPrintLabel]
+@="URL:InnoLuxPrint Protocol"
+[HKEY_CLASSES_ROOT\InnoLuxPrintLabel\DefaultIcon]
+@="C:\\Program Files (x86)\\InnoLuxPrint\\InnoLuxPrintLabel.exe"
+[HKEY_CLASSES_ROOT\InnoLuxPrintLabel]
+"URL Protocol"=""
+
+[Requirements]
+OperatingSystem=Win2008/7
+NetFramework=0
+NetFrameworkLink=http://www.microsoft.com/en-us/download/details.aspx?id=17718
+AdminRights=0
+
+[AfterInstalling]
+Reboot=0

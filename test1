@@ -1,3 +1,6 @@
+ 
+ http://downloads.businessobjects.com/akdlm/cr4vs2010/CRforVS_redist_install_32bit_13_0_18.zip
+ 
  using (ExcelPackage pck = new ExcelPackage())
             {
                 //Create the worksheet

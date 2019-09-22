@@ -1,11 +1,4 @@
-/*
- * 由SharpDevelop创建。
- * 用户： honjayChen
- * 日期: 2019/8/8
- * 时间: 下午 09:40
- * 
- * 要改变这种模板请点击 工具|选项|代码编写|编辑标准头文件
- */
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;

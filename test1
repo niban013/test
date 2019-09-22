@@ -1,3 +1,607 @@
+/*
+ * 由SharpDevelop创建。
+ * 用户： honjayChen
+ * 日期: 2019/8/8
+ * 时间: 下午 09:40
+ * 
+ * 要改变这种模板请点击 工具|选项|代码编写|编辑标准头文件
+ */
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.Design;
+using System.Drawing;
+using System.Drawing.Design;
+using System.Globalization;
+using System.Threading;
+using System.Windows.Forms;
+using System.Linq;
+using System.Windows.Forms.Design;
+
+namespace test
+{
+	/// <summary>
+	/// Description of MainForm.
+	/// </summary>
+	public partial class MainForm : Form
+	{
+		public MainForm()
+		{
+			//
+			// The InitializeComponent() call is required for Windows Forms designer support.
+			//
+			InitializeComponent();
+			
+			//
+			// TODO: Add constructor code after the InitializeComponent() call.
+			//
+		}
+		void Button1Click(object sender, EventArgs e)
+		{
+			LoadingControl pLoading = LoadingControl.getLoading();
+			//2、将方法体传入，执行方法体
+			pLoading.SetExecuteMethod(method,"o");
+			//3、显示窗体
+			pLoading.ShowDialog();
+		}
+		
+		private void method(object arg)
+       {
+           //1.获取窗体实例
+           LoadingControl pLoading = LoadingControl.getLoading();
+           //2.后台处理事务
+           
+            for (int i = 0; i < 10; i++ )
+            {
+            	pLoading.SetCaptionAndDescription("", "", "执行进度"  +i.ToString()  +"/10");
+                //这里写要执行的东西,新建了一个线程执行
+                Thread.Sleep(100);
+            }
+         //   MessageBox.Show(arg[0].ToString());
+           //4.关闭窗体
+           LoadingControl.getLoading().CloseLoadingForm();
+       }
+		void MainFormShown(object sender, EventArgs e)
+		{
+	
+		}
+		void Button2Click(object sender, EventArgs e)
+		{
+			var basicPropertyBag = new BasicPropertyBag();
+			basicPropertyBag.Properties.Add(new MetaProp("Name", typeof(string),new EditorAttribute( typeof(myUITypeEditor), typeof(UITypeEditor))));
+		
+			//basicPropertyBag.Properties.Add(new MetaProp("Name", typeof(string),new EditorAttribute(typeof(PropertyGridRichText), typeof(UITypeEditor))));
+	        basicPropertyBag.Properties.Add(new MetaProp("Description", typeof(string),new TypeConverterAttribute(typeof(MyThreeDPointConverter)),new DefaultValueAttribute((Keys.NumPad7))));
+	//		basicPropertyBag.Properties.Add(new MetaProp("DateOfBirth", typeof(DateTime), new CategoryAttribute("Personal"), new DisplayNameAttribute("Date Of Birth")));
+	        var bag = basicPropertyBag;
+	        bag["Name"] = "5,8,9";//new ThreeDPoint(5,8,9);
+	        bag["Description"] = new ThreeDPoint(5,8,9);
+   //     bag["DateOfBirth"] = DateTime.Today;
+        propertyGrid1.SelectedObject = bag;
+
+		} 
+	}
+	
+	//[TypeConverter(typeof(MyLocationConvert))] 
+	[TypeConverter(typeof(PersonConverterExpandable))]//试验第二种类型转换器
+	public class MyLocation//:ExpandableObjectConverter
+    {
+        private int x = 0;
+        private int y = 0;
+ 
+        public int X
+        {
+            get { return x; }
+            set { x = value; }
+        }
+        public int Y
+        {
+            get { return y; }
+            set { y = value; }
+        }
+        public override string ToString()
+        {
+           return ToString(CultureInfo.InvariantCulture);
+        }
+    
+        public string ToString(CultureInfo Culture)
+        {
+          return TypeDescriptor.GetConverter(GetType()).ConvertToString(null, 
+                                                            Culture, this);
+        }
+//        public override string ToString()
+//        {
+//            return x + "," + y ;
+//        }
+    }
+ 
+    class PersonConverterExpandable : ExpandableObjectConverter
+    {
+
+         //String -> MyLocation
+        public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+        {
+          if (sourceType == typeof(string))
+                  { 
+                	return true; 
+                  }
+                  else
+                 { 
+                	return false; 
+                
+              	}
+        	 
+        }
+ 
+        public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
+        {
+        	 
+            if (value == null || value.ToString().Length == 0) 
+                return new MyLocation();
+            char spliter = culture.TextInfo.ListSeparator[0]; // 得到字符串的分隔符
+            string[] ss = ((string)value).Split(spliter);
+            MyLocation myLoc = new MyLocation();
+            int leftIdx = 0;
+            myLoc.X = int.Parse(ss[leftIdx]);
+            myLoc.Y = int.Parse(ss[leftIdx+1]);
+            return myLoc;
+            // return "0,0";
+        }
+ 
+        //MyLocation -> Str
+        public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
+        {
+            if (destinationType == typeof(String)) 
+            { return true; }
+            else
+            { return false; }
+        }
+ 
+        // 在Property窗口中显示为string类型。
+        public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
+        {
+         
+            if (value == null) return "0,0";
+            if (destinationType == typeof(string))
+            {
+               // MyLocation myLoc = (MyLocation)value;
+                char spliter = culture.TextInfo.ListSeparator[0]; // 得到字符串的分隔符
+                
+                String[] locs = value.ToString().Split(spliter).ToArray();
+             //   locs[0] = myLoc.X.ToString();
+              //  locs[1] = myLoc.Y.ToString();
+                return string.Join(spliter.ToString(), locs);
+            }
+            return "0,0";
+           
+        }
+
+    }
+    public class MyLocationConvert : TypeConverter 
+    //public class PersonConverterExpandable : ExpandableObjectConverter 
+    {
+        //String -> MyLocation
+        public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+        {
+            if (sourceType == typeof(string))
+            { return true; }
+            else
+            { return false; }
+        }
+ 
+        public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
+        {
+            if (value == null || value.ToString().Length == 0) 
+                return new MyLocation();
+            char spliter = culture.TextInfo.ListSeparator[0]; // 得到字符串的分隔符
+            string[] ss = ((string)value).Split(spliter);
+            MyLocation myLoc = new MyLocation();
+            int leftIdx = 0;
+            myLoc.X = int.Parse(ss[leftIdx]);
+            myLoc.Y = int.Parse(ss[leftIdx+1]);
+            return myLoc;
+        }
+ 
+        //MyLocation -> Str
+        public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
+        {
+            if (destinationType == typeof(String)) 
+            { return true; }
+            else
+            { return false; }
+        }
+ 
+        // 在Property窗口中显示为string类型。
+        public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
+        {
+            if (value == null) return "0,0";
+            if (destinationType == typeof(string))
+            {
+               // MyLocation myLoc = (MyLocation)value;
+                char spliter = culture.TextInfo.ListSeparator[0]; // 得到字符串的分隔符
+                
+                String[] locs = value.ToString().Split(spliter).ToArray();
+             //   locs[0] = myLoc.X.ToString();
+              //  locs[1] = myLoc.Y.ToString();
+                return string.Join(spliter.ToString(), locs);
+            }
+            return "0,0";
+        }
+ 
+ 
+        public override bool GetPropertiesSupported(ITypeDescriptorContext context)
+        {
+            return true;
+        }
+ 
+        public override PropertyDescriptorCollection GetProperties(ITypeDescriptorContext context, object value, Attribute[] attributes)
+        {
+        	return TypeDescriptor.GetProperties(value,attributes);
+//            String[] names = new String[] { "X", "Y"};
+//            return (TypeDescriptor.GetProperties(value.GetType()).Sort(names));
+        }
+ 
+    }
+
+
+public class myUITypeEditor : UITypeEditor
+{
+    private ThreeDPoint DataSize;//用來存放視窗讀到的值
+    public override object EditValue(ITypeDescriptorContext context, IServiceProvider provider, object value)
+    {
+        IWindowsFormsEditorService EditorService = null;
+        if (context != null && context.Instance != null && provider != null)
+        {
+            //建立編輯服務
+            EditorService = (IWindowsFormsEditorService)provider.GetService(typeof(IWindowsFormsEditorService));
+            //讀取自訂視窗的值
+            UserControl1 ListEditorControl;
+//            PropertyFormEditor FormEditorControl;
+            if (DataSize != null)
+            {
+                ListEditorControl = new UserControl1(DataSize);
+//                FormEditorControl = new PropertyFormEditor(DataSize);
+            }
+            else
+            {
+                ListEditorControl = new UserControl1(new ThreeDPoint(0, 0,0));
+//                FormEditorControl = new PropertyFormEditor(new Size(0, 0));
+            }
+            //建立編輯彈跳畫面
+            //法一：下拉清單
+            EditorService.DropDownControl(ListEditorControl);//畫面彈跳方式
+            DataSize = ListEditorControl.size;
+            //法二：視窗
+//            EditorService.ShowDialog(FormEditorControl);//畫面彈跳方式
+//            DataSize = FormEditorControl.size;
+            return "9,9,9";
+        }
+        else
+        {
+            return null;
+        }
+    } 
+
+    public override UITypeEditorEditStyle GetEditStyle(ITypeDescriptorContext context)
+    {
+        if (context != null && context.Instance != null)
+        {
+            //return UITypeEditorEditStyle.Modal;
+            return UITypeEditorEditStyle.DropDown;
+            //return UITypeEditorEditStyle.None;
+        }
+        return base.GetEditStyle(context);
+    }
+}
+
+    
+[TypeConverter(typeof(MyThreeDPointConverter))]
+public class ThreeDPoint
+{
+    public ThreeDPoint(int x, int y, int z)
+    {
+        this.x = x; this.y = y; this.z = z;
+    }
+    public ThreeDPoint(  )
+    {
+
+    }
+    [RefreshProperties(RefreshProperties.All)]
+    [TypeConverter(typeof(limitNumConverter))]
+    public int X { get { return x; } set { x = value; } }
+    [RefreshProperties(RefreshProperties.All)]
+    public int Y { get { return y; } set { y = value; } }
+    [RefreshProperties(RefreshProperties.All)]
+    public int Z { get { return z; } set { z = value; } }
+    private int x, y, z;
+}
+
+    public class limitNumConverter : TypeConverter
+    {
+        public limitNumConverter()
+        {
+        }
+        public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+        {
+            return ((sourceType == typeof(string)) || base.CanConvertFrom(context, sourceType));
+        }
+        public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
+        {
+            if (!(value is string))
+            {
+                return base.ConvertFrom(context, culture, value);
+            }
+            int num3 = 100;
+            try
+            {
+               num3 = Convert.ToInt32(value);
+            }
+            catch (FormatException exception)
+            {
+                throw new FormatException("The value should be between 0 to 100", exception);
+            }
+            if ((num3 < 0) || (num3 > 100))
+            {
+                throw new FormatException("The value should be between 0 to 100");
+            }
+            return num3;
+        }
+
+        public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
+        {
+            if (destinationType == null)
+            {
+                throw new ArgumentNullException("destinationType");
+            }
+
+            if (destinationType == typeof(string))
+            {
+                int num = Convert.ToInt32(value);
+                return num.ToString();
+            }
+            return base.ConvertTo(context, culture, value, destinationType);
+        }
+    }
+
+
+public class MyThreeDPointConverter : ExpandableObjectConverter
+{
+	
+    public override bool CanConvertTo(ITypeDescriptorContext context,Type destinationType)
+    {
+        if (destinationType ==  typeof(string)) return true;
+        return base.CanConvertTo(context, destinationType);
+    }   
+
+    public override bool CanConvertFrom(ITypeDescriptorContext context ,Type sourceType)
+    {
+        if (sourceType ==  typeof(string)) return true;
+        return base.CanConvertFrom(context, sourceType);
+    }
+
+    public override object ConvertTo(ITypeDescriptorContext context,
+        System.Globalization.CultureInfo culture, object value,  Type destinationType)
+    {
+        if (destinationType == typeof(string))
+        {
+            ThreeDPoint point = (ThreeDPoint) value;
+            return string.Format("{0},{1},{2}", point.X, point.Y, point.Z);
+        }
+        return base.ConvertTo(context, culture, value, destinationType);
+    }
+
+    public override bool IsValid(ITypeDescriptorContext iContext, object iValue)
+    {
+            if (iValue == null)
+                return base.IsValid(iContext, iValue);
+
+            if (iValue is string)
+            {
+                // Tokenize the string.
+//                string[] tokens = ((string) iValue).Split(new char[] { ',' });
+//
+//                int red;
+//                int green;
+//                int blue;
+//                int alpha;
+//
+//                // Validate tokens and parse them.
+//                if (tokens.Length != 4 ||
+//                    !int.TryParse(tokens[0], out red) ||
+//                    !int.TryParse(tokens[1], out green) ||
+//                    !int.TryParse(tokens[2], out blue) ||
+//                    !int.TryParse(tokens[3], out alpha))
+//                    return false;
+
+                return true;
+            }
+
+            return base.IsValid(iContext, iValue);
+    }
+
+    public override object ConvertFrom(ITypeDescriptorContext context,
+        System.Globalization.CultureInfo culture, object value)
+    {
+        if (value.GetType() == typeof(string))
+        {
+            string src = (string) value;
+            string[] points = src.Split(',');
+            if (points.Length != 3) 
+                throw new ArgumentException("String must be formatted as value");
+            
+            	MessageBox.Show("Invalid value.");
+            return new ThreeDPoint(int.Parse(points[0]),
+                int.Parse(points[1]), int.Parse(points[2]));
+        }
+        return base.ConvertFrom(context, culture, value);
+    }
+       public override PropertyDescriptorCollection GetProperties(ITypeDescriptorContext context, object value, Attribute[] attributes)
+        {
+        	//return TypeDescriptor.GetProperties(value,attributes);
+            String[] names = new String[] { "X", "Y","Z"};
+            return (TypeDescriptor.GetProperties(value.GetType()).Sort(names));
+        }
+}
+	
+[TypeConverter(typeof(PropertyGridRichText))]
+public class States
+{
+}
+	public class Stuff
+{
+    [Editor(typeof(MultiLineTextEditor), typeof(UITypeEditor))]
+    public string MultiLineProperty { get; set; }
+}
+	public class MultiLineTextEditor : UITypeEditor
+{
+    private IWindowsFormsEditorService _editorService;
+
+    public override UITypeEditorEditStyle GetEditStyle(ITypeDescriptorContext context)
+    {
+        return UITypeEditorEditStyle.DropDown;
+    }
+
+    public override object EditValue(ITypeDescriptorContext context, IServiceProvider provider, object value)
+    {
+        _editorService = (IWindowsFormsEditorService)provider.GetService(typeof(IWindowsFormsEditorService));
+
+        TextBox textEditorBox = new TextBox();
+        textEditorBox.Multiline = true;
+        textEditorBox.ScrollBars = ScrollBars.Vertical;
+        textEditorBox.Width = 250;
+        textEditorBox.Height = 150;
+        textEditorBox.BorderStyle = BorderStyle.None;
+        textEditorBox.AcceptsReturn = true;
+        textEditorBox.Text = value as string;
+
+        _editorService.DropDownControl(textEditorBox);
+
+        return textEditorBox.Text;
+    }
+}
+	public class MetaProp
+{
+    public MetaProp(string name, Type type, params Attribute[] attributes)
+    {
+        this.Name = name;
+        this.Type = type;
+        if (attributes != null)
+        {
+            Attributes = new Attribute[attributes.Length];
+            attributes.CopyTo(Attributes, 0);
+        }
+    }
+    public string Name { get; private set; }
+    public Type Type { get; private set; }
+    public Attribute[] Attributes { get; private set; }
+}
+
+[TypeConverter(typeof(BasicPropertyBagConverter))]
+class BasicPropertyBag
+{
+
+    private readonly List<MetaProp> properties = new List<MetaProp>();
+    public List<MetaProp> Properties { get { return properties; } }
+    private readonly Dictionary<string, object> values = new Dictionary<string, object>();
+
+    public object this[string key]
+    {
+        get { object value; return values.TryGetValue(key, out value) ? value : null; }
+        set { if (value == null) values.Remove(key); else values[key] = value; }
+    }
+
+    class BasicPropertyBagConverter : ExpandableObjectConverter
+    {
+        public override PropertyDescriptorCollection GetProperties(ITypeDescriptorContext context, object value, Attribute[] attributes)
+        {
+            PropertyDescriptor[] metaProps = (from prop in ((BasicPropertyBag)value).Properties
+                                              select new PropertyBagDescriptor(prop.Name, prop.Type, prop.Attributes)).ToArray();
+            return new PropertyDescriptorCollection(metaProps);
+        }
+    }
+    class PropertyBagDescriptor : PropertyDescriptor
+    {
+        private readonly Type type;
+        public PropertyBagDescriptor(string name, Type type, Attribute[] attributes)
+            : base(name, attributes) {
+            this.type = type;
+        }
+        public override Type PropertyType { get { return type; } }
+        public override object GetValue(object component) { return ((BasicPropertyBag)component)[Name]; }
+        public override void SetValue(object component, object value) 
+        { 
+        	((BasicPropertyBag)component)[Name] = value;
+        }
+        public override bool ShouldSerializeValue(object component) { return GetValue(component) != null; }
+        public override bool CanResetValue(object component) { return true; }
+        public override void ResetValue(object component) { SetValue(component, null); }
+        public override bool IsReadOnly { get { return false; } }
+        public override Type ComponentType { get { return typeof(BasicPropertyBag); } }
+    }
+
+}
+
+ public class PropertyGridRichText : UITypeEditor  
+   
+    {  
+   
+        public override UITypeEditorEditStyle GetEditStyle(System.ComponentModel.ITypeDescriptorContext context)  
+   
+        {  
+   
+            return UITypeEditorEditStyle.DropDown;  
+   
+        }  
+   
+        public override object EditValue(System.ComponentModel.ITypeDescriptorContext context, System.IServiceProvider provider, object value)  
+   
+        {  
+   
+            try 
+   
+            {  
+   
+                IWindowsFormsEditorService edSvc =  (IWindowsFormsEditorService)provider.GetService(typeof(IWindowsFormsEditorService));  
+   
+                if (edSvc != null)  
+   
+                {  
+   
+                  //  if (value is string)  
+   
+                  //  {  
+   
+                        RichTextBox box = new RichTextBox();  
+   
+                        box.Text = value as string;  
+   
+                        edSvc.DropDownControl(box);  
+   
+                        return box.Text;  
+   
+                 //   }  
+   
+                }  
+   
+            }  
+   
+            catch (Exception ex)  
+   
+            {  
+   
+                System.Console.WriteLine("PropertyGridRichText Error : " + ex.Message);  
+   
+                return value;  
+   
+            }  
+   
+            return value;  
+   
+        }  
+   
+    } 
+}
+ 
  https://hk.saowen.com/a/5118e7300ab66ea03abd9346e3228a3094b968555b3f82d257dc3d750ac8b3b9
  http://downloads.businessobjects.com/akdlm/cr4vs2010/CRforVS_redist_install_32bit_13_0_18.zip
  https://dotblogs.com.tw/topcat/archive/2009/12/03/12276.aspx

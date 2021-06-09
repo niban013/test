@@ -1,3 +1,6 @@
+
+ objshanudgvHelper.DGVMasterGridClickEvents(Master_shanuDGV, Detail_shanuDGV, Master_shanuDGV.Columns["img"].Index, ShanuEventTypes.cellContentClick, ShanuControlTypes.ImageColumn, detailTableList, "Order_No");
+            
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;

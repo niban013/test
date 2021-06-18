@@ -1,4 +1,14 @@
 
+ <table style="width: 100%">
+                <tr>
+                    <td style="padding: 4px">
+                        <dx:ASPxButton ID="ASPxButton1" AutoPostBack="False" runat="server" Text="Close" style="float: right">
+                            <ClientSideEvents Click="function(s, e){ checkComboBox.HideDropDown(); }" />
+                        </dx:ASPxButton>
+                    </td>
+                </tr>
+            </table>
+
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="Test._Default" %>
  http://kodekodekode.blogspot.com/2013/10/create-dynamic-item-checkbox-on.html
 <%@ Register Assembly="DevExpress.Web.v12.2, Version=12.2.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.ASPxEditors" TagPrefix="dx" %>

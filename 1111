@@ -1,4 +1,4 @@
-
+https://demos.devexpress.com/ASPxEditorsDemos/ASPxDropDownEdit/CheckComboBox.aspx
  objshanudgvHelper.DGVMasterGridClickEvents(Master_shanuDGV, Detail_shanuDGV, Master_shanuDGV.Columns["img"].Index, ShanuEventTypes.cellContentClick, ShanuControlTypes.ImageColumn, detailTableList, "Order_No");
             
 using System;

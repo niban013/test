@@ -1,3 +1,75 @@
+
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="Test._Default" %>
+ 
+<%@ Register Assembly="DevExpress.Web.v12.2, Version=12.2.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.ASPxEditors" TagPrefix="dx" %>
+ 
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+ 
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title></title>
+</head>
+<body>
+    <form id="form" runat="server">
+        <div>
+            <dx:ASPxComboBox ID="cbxM" runat="server" ValueType="System.String" ValueField="ID">
+                <Columns>
+                    <Dx: ListBoxColumn FieldName = "Name" Caption = "name" />
+                </Columns>
+            </dx:ASPxComboBox>
+            <dx:ASPxListBox ID="listBox" runat="server" ValueType="System.String" SelectionMode="CheckColumn" ValueField="ID" Height="500px" TextField="Name">
+                <Columns>
+                                         <Dx: ListBoxColumn FieldName = "Name" Caption = "name" />
+                </Columns>
+            </dx:ASPxListBox>
+            <dx:ASPxButton ID="btnTest" runat="server" Text="Test" OnClick="btnTest_Click"></dx:ASPxButton>
+        </div>
+    </form>
+</body>
+
+
+
+namespace Test
+{
+    public partial class _Default : System.Web.UI.Page
+    {
+        TestEntities ctx = new TestEntities();
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            this.listBox.DataSource = ctx.UnitType;
+            this.listBox.DataBind();
+            BindMaterial();
+        }
+ 
+        private void BindMaterial()
+        {
+            this.cbxM.DataSource = ctx.Material;
+            this.cbxM.DataBind();
+        }
+ 
+        protected void btnTest_Click(object sender, EventArgs e)
+        {
+            string unitStr = string.Empty;
+            foreach (ListEditItem item in listBox.Items)
+            {
+                if (item.Selected)
+                {
+                    unitStr += item.Value + ",";
+                }
+            }
+            unitStr = unitStr.TrimEnd(',');
+            Mapping mapping = new Mapping();
+            mapping.MaterialReference.EntityKey = new System.Data.EntityKey("entities.User", "ID", userID);
+        }
+    }
+
+
+
+
+
+
+
+
 https://demos.devexpress.com/ASPxEditorsDemos/ASPxDropDownEdit/CheckComboBox.aspx
  objshanudgvHelper.DGVMasterGridClickEvents(Master_shanuDGV, Detail_shanuDGV, Master_shanuDGV.Columns["img"].Index, ShanuEventTypes.cellContentClick, ShanuControlTypes.ImageColumn, detailTableList, "Order_No");
   https://www.programmersought.com/article/43312188461/          

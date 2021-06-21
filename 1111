@@ -1,4 +1,37 @@
 
+
+<dx:ASPxGridViewExporter ID="ASPxGridViewExporter6" GridViewID="ASPxGridView6" PaperKind="Custom" BottomMargin="0" TopMargin="10" LeftMargin="10" RightMargin="0" MaxColumnWidth="800" Landscape="true"  runat="server"> 
+           <Styles> 
+          <Cell Font-Size="12px" BackColor="#fffff0" ForeColor="#000000" Font-Names="Arial" VerticalAlign="Top" /> 
+          <AlternatingRowCell BackColor="#feae30" /> 
+          <Default  Font-Size="12px" Wrap="False" BackColor="Red" VerticalAlign="Top" /> 
+          <Header BackColor="#feae30" Font-Size="12px" ForeColor="#000000" Font-Names="Arial" Font-Bold="false" /> 
+           </Styles>            
+        </dx:ASPxGridViewExporter>
+        
+        
+         protected void ExportToExcel_Click(object sender, EventArgs e)
+          {
+              ASPxGridView6.DataSource = temp_dt6;
+              ASPxGridView6.DataBind();
+              List<string> temp_lt = new List<string> { "下移", "上移", "编号", "序号", "业务表名", "表名分类", "单据号", "年度", "收付", "税率", "业务实际", "票据说明", "方向", "票据方向", "票据客户", "票据单位", "票据金额", "比率", "结算公式", "结算金额", "票据实际", "对帐单", "结算单", "欠我金额", "欠我用票", "我欠出票", "欠我款额", "修改人", "修改时间", "录入人", "录入时间", "作废", "业编组合", "区分合作", "合作备注", "业务时间" };
+              List<string> temp_lt2 = new List<string> { "客户简称", "号牌号码", "摘要", "数", "量", "单价", "应结公式", "应结金额", "实结公式", "实结金额"};
+              foreach(string st in temp_lt)
+              {
+                  ASPxGridView6.Columns[st].Visible = false;
+              }
+              ASPxGridViewExporter6.WriteXlsToResponse(khmc_combo.Text+dzdh_combo.Text+"(" + System.DateTime.Now.ToString("yyyyMMddHHmmss")+")",new XlsExportOptionsEx { ExportType = ExportType.WYSIWYG});//导出xls文件
+              foreach (string st in temp_lt)
+              {
+                  ASPxGridView6.Columns[st].Visible = true;
+              }
+          }
+————————————————
+版权声明：本文为CSDN博主「864记忆」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/hmwz0001/article/details/113616442
+————————————————
+版权声明：本文为CSDN博主「864记忆」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/hmwz0001/article/details/113616442
 https://github.com/DevExpress-Examples/aspxgridview-export-data-to-xml-e4917/blob/13.1.7%2B/CS/WebSite/Default.aspx.cs
 
 https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid-when-the-data-aware-export-mode-is-used-t262239/blob/15.1.4%2B/CS/Default.aspx.cs

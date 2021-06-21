@@ -1,3 +1,407 @@
+<%@ Register Assembly="DevExpress.Web.Bootstrap.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.Bootstrap" TagPrefix="dx" %>
+
+<%@ Register Assembly="DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web" TagPrefix="dx" %>
+
+
+
+
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="WebForm3.aspx.cs" Inherits="WebApplication2.WebForm3" %>
+
+<%@ Register Assembly="DevExpress.Web.Bootstrap.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.Bootstrap" TagPrefix="dx" %>
+
+<%@ Register Assembly="DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web" TagPrefix="dx" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" href="./css1/jquery-ui.css">
+    <link rel="stylesheet" href="./css1/ui.jqgrid.css">
+    <link rel="stylesheet" href="./css1/bootstrap.min.css">
+    <link rel="stylesheet" href="./css1/bootstrap-datetimepicker.min.css">
+
+    <script src="./js1/jquery-2.2.4.min.js"></script>
+    <script src="./js1/jquery-ui.min.js"></script>
+    <script src="./js1/jquery-migrate-1.2.1.js"></script>
+    <script src="./js1/bootstrap.min.js"></script>
+    <script src="./js1/moment.min.js"></script>
+    <script src="./js1/bootstrap-datetimepicker.min.js"></script>
+    <script src="./js1/jquery.jqGrid.src.js"></script>
+    <title></title>
+     <style type="text/css">
+   .roundedBorders {  
+    border-radius: 5px;  
+    -moz-border-radius: 5px;  
+    -khtml-border-radius: 5px;  
+    -webkit-border-radius: 5px;  
+    overflow: hidden !important;  
+    overflow-x: hidden !important;  
+    overflow-y: hidden !important;  
+ </style>
+
+</head>
+<body>
+    <form id="form1" runat="server" >
+         <dx:ASPxCallbackPanel ID="ASPxCallbackPanel1" runat="server"> 
+                <PanelCollection> 
+                    <dx:PanelContent runat="server">   
+        <div class="container-fluid form-group">
+            <div class="panel panel-primary" id="accordion">
+                <div class="panel-heading clearfix">
+                    <h3 class="panel-title pull-left">
+                        <span class="glyphicon glyphicon-edit"></span>
+                        <span>填表人资料 Author Information</span>
+                    </h3>
+                    <h3 class="panel-title pull-right"> 
+                       <a aria-controls="head1" aria-expanded="true" data-parent="#accordion" 
+                           data-toggle="collapse" href="#head" role="button">
+                           <span class="glyphicon glyphicon-collapse-down"></span> 
+                       </a>
+                    </h3>
+                </div>
+                <div id="head" class="panel-collapse collapse in">
+                   <div class="panel-body">
+                    <div class="row">
+                        <div>
+                            <label class="form-inline">参加单位：<input type="text" class="form-control" /></label>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label>
+                                单号<br />
+                                From No</label>
+                            <div class="form-group">
+                                <input id="txtFromNo" type="text" class="form-control" data-msg="" readonly="readonly" style="text-align: right; width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4"> 
+                            <div class="form-group form-inline">
+                                <div style="display: flex; flex-direction: row; justify-content: flex-start; align-items: center">
+                                    <label for="Student" style="text-align: left!important;margin-top:10px">Name:</label>
+                                    <dx:ASPxRadioButtonList ID="ASPxRadioButtonList1" class="form-control" runat="server" TextAlign="Right" RepeatDirection="Horizontal" RepeatColumns="3"
+                                        Style="width: 99%">
+                                        <Items>
+                                            <dx:ListEditItem Value="0" Selected="True" Text="Yes "></dx:ListEditItem>
+                                            <dx:ListEditItem Value="1" Selected="false" Text="No "></dx:ListEditItem>
+                                            <dx:ListEditItem Value="2" Selected="false" Text="N/A"></dx:ListEditItem>
+                                        </Items>
+                                        <Border BorderWidth="0" />
+                                        <Border BorderStyle="None" />
+                                        <BorderLeft BorderStyle="None" />
+                                        <BorderTop BorderStyle="None" />
+                                        <BorderRight BorderStyle="None" />
+                                        <BorderBottom BorderStyle="None" />
+                                    </dx:ASPxRadioButtonList>
+                                </div>
+                            </div>
+
+
+                           <%-- <div class="form-group">
+                                <label for="State" class="col-md-2 control-label">工号</label>
+                                <div class="col-md-10">
+                                    <dx:ASPxRadioButtonList ID="ASPxRadioButtonList1" class="form-control" runat="server" TextAlign="Right" RepeatDirection="Horizontal" RepeatColumns="3"
+                                        Style="width: 99%">
+                                        <Items>
+                                            <dx:ListEditItem Value="0" Selected="True" Text="Yes "></dx:ListEditItem>
+                                            <dx:ListEditItem Value="1" Selected="false" Text="No "></dx:ListEditItem>
+                                            <dx:ListEditItem Value="2" Selected="false" Text="N/A"></dx:ListEditItem>
+                                        </Items>
+                                        <Border BorderWidth="0" />
+                                        <Border BorderStyle="None" />
+                                        <BorderLeft BorderStyle="None" />
+                                        <BorderTop BorderStyle="None" />
+                                        <BorderRight BorderStyle="None" />
+                                        <BorderBottom BorderStyle="None" />
+                                    </dx:ASPxRadioButtonList>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="Name" class="col-md-4 control-label">Name</label>
+                                    <div class="col-md-8">
+                                        <input id="Name" type="text" class="form-control" />
+                                    </div>
+                                </div>
+
+                            </div>--%>
+
+
+
+                            <%--  <div class="form-group">
+                                <label>工号</label>
+                                <dx:ASPxRadioButtonList ID="rblBagJulianDate" runat="server" TextAlign="Right" RepeatDirection="Horizontal" RepeatColumns="3"
+                                    Style="width: 99%">
+                                    <Items>
+                                        <dx:ListEditItem Value="0" Selected="True" Text="Yes "></dx:ListEditItem>
+                                        <dx:ListEditItem Value="1" Selected="false" Text="No "></dx:ListEditItem>
+                                        <dx:ListEditItem Value="2" Selected="false" Text="N/A"></dx:ListEditItem>
+                                    </Items>
+                                    <Border BorderWidth="0" />
+                                    <Border BorderStyle="None" />
+                                    <BorderLeft BorderStyle="None" />
+                                    <BorderTop BorderStyle="None" />
+                                    <BorderRight BorderStyle="None" />
+                                    <BorderBottom BorderStyle="None" />
+                                </dx:ASPxRadioButtonList>
+                            </div>--%>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group form-inline">
+                                <div style="display: flex; flex-direction: row; justify-content: flex-start; align-items: center">
+                                    <label for="Student" style="text-align: left!important;">Name:</label>
+                                    <input name="Student" id="Student" class="form-control" style="text-align: left; margin-left: 10px; width:100%"; />
+                                </div>
+                            </div>
+                            <%--<div class="form-group form-inline">
+                                <label for="exampleInputEmail1">Email</label>
+                                <input type="text" class="form-control" id="firstname" placeholder="请输入名字" style="text-align: left;">
+                            </div>--%>
+                           <%-- <div class="form-group">
+                                <label for="firstname" class="col-sm-2 control-label">名字</label>
+                                <div class="col-sm-10">
+                                    <input type="text" class="form-control" id="firstname" placeholder="请输入名字">
+                                </div>
+                            </div>--%>
+                           <%-- <div class="form-group">
+                                <label for="State" class="col-md-2">姓名</label>
+                                <div class="col-md-10">
+                                    <input id="txtCname" type="text" class="form-control" data-msg="" readonly="readonly" style="text-align: right; width: 100%;">
+                                </div>
+                            </div>--%>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="State" class="col-md-2 control-label">英文名</label>
+                                <div class="col-md-10">
+                                    <input id="txtEname" type="text" class="form-control" data-msg="" readonly="readonly" style="text-align: right; width: 100%;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label>分机 EXT Number</label></span><br />
+                            <div class="form-group">
+                                <input id="txtExt" type="text" class="form-control" data-msg="" readonly="readonly" style="text-align: right; width: 100%;">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label>进出口类型 Type of Import/Export</label></span><br />
+                            <div class="form-group">
+                               
+                                <dx:ASPxDropDownEdit ClientInstanceName="checkComboBox" ID="ASPxDropDownEdit1" Width="100%" runat="server" AnimationType="None" class="form-control" Height="34px" CssClass="roundedBorders" >
+                                    <DropDownWindowStyle BackColor="#EDEDED" />
+                                    <DropDownWindowTemplate>
+                                     <%--     <div style="height: 300px; width: 270px; overflow: auto">--%>
+                                        <dx:ASPxListBox Width="100%" ID="listBox" ClientInstanceName="checkListBox" SelectionMode="CheckColumn"
+                                            runat="server" Height="300" EnableSelectAll="true">
+                                            <FilteringSettings ShowSearchUI="true" />
+                                            <Border BorderStyle="None" />
+                                            <BorderBottom BorderStyle="Solid" BorderWidth="1px" BorderColor="#DCDCDC" />
+                                            <Items>
+                                                <dx:ListEditItem Text="Chrome" Value="0" Selected="true" />
+                                                <dx:ListEditItem Text="Firefox" Value="1" />
+                                                <dx:ListEditItem Text="IE" Value="2" />
+                                                <dx:ListEditItem Text="Opera" Value="3" />
+                                                <dx:ListEditItem Text="Safari" Value="4" Selected="true" />
+                                            </Items>
+                                         
+                                        </dx:ASPxListBox>
+                                        <table style="width: 100%">
+                                            <tr>
+                                                <td style="padding: 4px">
+                                                              <dx:ASPxButton ID="ASPxButton1" AutoPostBack="true" runat="server" OnClick="btnTest_Click" Text="Close" Style="float: right">
+                                                        </dx:ASPxButton>
+                                                             </td>
+                                            </tr>
+                                        </table>     
+                                      <%--  </div>--%>
+                                    </DropDownWindowTemplate>
+                                 <DropDownWindowStyle BackColor=#EDEDED>
+                               </DropDownWindowStyle>
+                                </dx:ASPxDropDownEdit>
+                          
+                                      </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label>填写日期 Apply date</label><br />
+                            <div class="form-group">
+                    
+                                <asp:Button ID="Button1" runat="server" class="btn btn-primary" Text="Button" OnClick="Button1_Click" /> 
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                </div> 
+            </div>
+             <div id="divTax2" class="panel panel-primary">
+
+                    <div class="panel panel-primary">
+                        <div class="panel-heading clearfix">
+                            <h3 class="panel-title pull-left">
+                                <span class="glyphicon glyphicon-edit"></span>
+                                <span>關務第二次確認</span>
+                            </h3>
+                            <h3 class="panel-title pull-right"></h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <dx:ASPxGridView ID="ASPxGridView1" runat="server"  OnPageIndexChanged="ASPxGridView1_PageIndexChanged" OnDataBinding="ASPxGridView1_DataBinding">
+                                        <Columns>
+                                            <dx:GridViewDataColumn Caption="LogID" FieldName="col1" />
+                                            <dx:GridViewDataColumn Caption="發生時間" FieldName="col2" />
+                                        </Columns>
+                                        <SettingsPager PageSize="15" />
+                                         <%--<Settings VerticalScrollBarMode="Auto" />--%>  
+                                        <SettingsBehavior AllowSort="true" SortMode="Value"/>  
+                                        <%--<Settings VerticalScrollBarMode="Auto" VerticalScrollBarStyle="Virtual" VerticalScrollableHeight ="300" />--%>
+                                                                               
+                                    </dx:ASPxGridView>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        </div>
+
+        <div id="default-popup-control-4" class="popup-target popup-target-sm"></div>
+        <dx:BootstrapPopupControl runat="server"  ID="BootstrapPopupControl1" ShowOnPageLoad="false" PopupElementCssSelector="#default-popup-control-4"
+            PopupHorizontalAlign="Center" PopupVerticalAlign="Middle" Width="500px" CloseAction="CloseButton"
+            AllowResize="true" Modal="true">
+            <ContentCollection>
+                <dx:ContentControl> 
+                </dx:ContentControl>
+            </ContentCollection>
+        </dx:BootstrapPopupControl>   </dx:PanelContent>
+                       </PanelCollection>
+      </dx:ASPxCallbackPanel>
+    </form>
+</body>
+</html>
+ 
+
+
+ 
+ 
+using DevExpress.Web;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace WebApplication2
+{
+    public partial class WebForm3 : System.Web.UI.Page
+    {
+        // DataTable workTable = new DataTable();
+        private DataTable workTable
+        {
+            get 
+            {
+                return (DataTable)ViewState["uid"];
+            }
+            set 
+            {
+                ViewState["uid"] = value; 
+
+            } 
+        }
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            //  ASPxDropDownEdit.AdjustDropDownWindow();
+            if (!IsPostBack)
+            {
+                DataTable workTable1 = new DataTable();
+                DataColumn dc = new DataColumn("col1", typeof(String));
+                workTable1.Columns.Add(dc);
+
+                dc = new DataColumn("col2", typeof(String));
+                workTable1.Columns.Add(dc);
+  
+                DataRow workRow;
+
+                for (int i = 0; i <= 19; i++)
+                {
+                    workRow = workTable1.NewRow();
+                    workRow["col1"] = i;
+                    workRow["col2"] = "CustName" + i.ToString();
+                    workTable1.Rows.Add(workRow);
+                }
+                workTable1.AcceptChanges();
+                workTable = workTable1;
+            }
+
+        }
+        protected void btnTest_Click(object sender, EventArgs e)
+        {
+            string unitStr = string.Empty;
+            foreach (ListEditItem item in ((ASPxListBox)ASPxDropDownEdit1.FindControl("listbox")).Items)
+            {
+                if (item.Selected)
+                {
+                    unitStr += item.Text + ",";
+                }
+            }
+            unitStr = unitStr.TrimEnd(',');
+            // ((ASPxDropDownEdit)ASPxDropDownEdit1.FindControl("ASPxDropDownEdit1")).Text = unitStr;
+
+            ASPxDropDownEdit1.Text= unitStr; ;
+        }
+
+        protected void Button1_Click(object sender, EventArgs e)
+        {
+            //BootstrapPopupControl1.ShowCloseButton = true;
+            //BootstrapPopupControl1.HeaderText = "test";
+            //BootstrapPopupControl1.Text = "good";
+            //BootstrapPopupControl1.ShowOnPageLoad =true;
+            
+            ASPxGridView1.DataSource = workTable;
+            ASPxGridView1.DataBind();
+        }
+
+        protected void ASPxGridView1_PageIndexChanged(object sender, EventArgs e)
+        {
+            var view = sender as ASPxGridView;
+            if (view == null) return; 
+            ASPxGridView1.PageIndex = view.PageIndex;
+            ASPxGridView1.DataSource = workTable;
+          //  ASPxGridView1.Settings.VerticalScrollableHeight = 
+            ASPxGridView1.DataBind();
+        }
+
+        protected void grid_CustomColumnSort (object sender, DevExpress.Web.CustomColumnSortEventArgs e)
+        {
+            //if (e.Column.FieldName == "Country")
+            //{
+                e.Handled = true;
+                string s1 = e.Value1.ToString(), s2 = e.Value2.ToString();
+                if (s1.Length > s2.Length)
+                    e.Result = 1;
+                else
+                    if (s1.Length == s2.Length)
+                    e.Result = Comparer.Default.Compare(s1, s2);
+                else
+                    e.Result = -1;
+            //}
+        }
+
+        protected void ASPxGridView1_DataBinding(object sender, EventArgs e)
+        {
+            ASPxGridView1.DataSource = workTable;
+        }
+    }
+}
+
 
  <table style="width: 100%">
                 <tr>

@@ -1,5 +1,5 @@
 
-
+https://forums.asp.net/t/2162478.aspx?Exporting+Gridview+to+Excel+File
 <dx:ASPxGridViewExporter ID="ASPxGridViewExporter6" GridViewID="ASPxGridView6" PaperKind="Custom" BottomMargin="0" TopMargin="10" LeftMargin="10" RightMargin="0" MaxColumnWidth="800" Landscape="true"  runat="server"> 
            <Styles> 
           <Cell Font-Size="12px" BackColor="#fffff0" ForeColor="#000000" Font-Names="Arial" VerticalAlign="Top" /> 

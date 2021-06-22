@@ -1,147 +1,4 @@
-
-https://forums.asp.net/t/2162478.aspx?Exporting+Gridview+to+Excel+File
-<dx:ASPxGridViewExporter ID="ASPxGridViewExporter6" GridViewID="ASPxGridView6" PaperKind="Custom" BottomMargin="0" TopMargin="10" LeftMargin="10" RightMargin="0" MaxColumnWidth="800" Landscape="true"  runat="server"> 
-           <Styles> 
-          <Cell Font-Size="12px" BackColor="#fffff0" ForeColor="#000000" Font-Names="Arial" VerticalAlign="Top" /> 
-          <AlternatingRowCell BackColor="#feae30" /> 
-          <Default  Font-Size="12px" Wrap="False" BackColor="Red" VerticalAlign="Top" /> 
-          <Header BackColor="#feae30" Font-Size="12px" ForeColor="#000000" Font-Names="Arial" Font-Bold="false" /> 
-           </Styles>            
-        </dx:ASPxGridViewExporter>
-        
-        
-         protected void ExportToExcel_Click(object sender, EventArgs e)
-          {
-              ASPxGridView6.DataSource = temp_dt6;
-              ASPxGridView6.DataBind();
-              List<string> temp_lt = new List<string> { "下移", "上移", "编号", "序号", "业务表名", "表名分类", "单据号", "年度", "收付", "税率", "业务实际", "票据说明", "方向", "票据方向", "票据客户", "票据单位", "票据金额", "比率", "结算公式", "结算金额", "票据实际", "对帐单", "结算单", "欠我金额", "欠我用票", "我欠出票", "欠我款额", "修改人", "修改时间", "录入人", "录入时间", "作废", "业编组合", "区分合作", "合作备注", "业务时间" };
-              List<string> temp_lt2 = new List<string> { "客户简称", "号牌号码", "摘要", "数", "量", "单价", "应结公式", "应结金额", "实结公式", "实结金额"};
-              foreach(string st in temp_lt)
-              {
-                  ASPxGridView6.Columns[st].Visible = false;
-              }
-              ASPxGridViewExporter6.WriteXlsToResponse(khmc_combo.Text+dzdh_combo.Text+"(" + System.DateTime.Now.ToString("yyyyMMddHHmmss")+")",new XlsExportOptionsEx { ExportType = ExportType.WYSIWYG});//导出xls文件
-              foreach (string st in temp_lt)
-              {
-                  ASPxGridView6.Columns[st].Visible = true;
-              }
-          }
-————————————————
-版权声明：本文为CSDN博主「864记忆」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
-原文链接：https://blog.csdn.net/hmwz0001/article/details/113616442
-————————————————
-版权声明：本文为CSDN博主「864记忆」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
-原文链接：https://blog.csdn.net/hmwz0001/article/details/113616442
-https://github.com/DevExpress-Examples/aspxgridview-export-data-to-xml-e4917/blob/13.1.7%2B/CS/WebSite/Default.aspx.cs
-
-https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid-when-the-data-aware-export-mode-is-used-t262239/blob/15.1.4%2B/CS/Default.aspx.cs
-<!--
-  如需如何設定 ASP.NET 應用程式的詳細資訊，請前往
-  https://go.microsoft.com/fwlink/?LinkId=169433
-  -->
-<configuration>
-  <configSections>
-    <sectionGroup name="devExpress">
-      <section name="themes" type="DevExpress.Web.ThemesConfigurationSection, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" requirePermission="false" />
-      <section name="compression" type="DevExpress.Web.CompressionConfigurationSection, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" requirePermission="false" />
-      <section name="settings" type="DevExpress.Web.SettingsConfigurationSection, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" requirePermission="false" />
-      <section name="errors" type="DevExpress.Web.ErrorsConfigurationSection, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" requirePermission="false" />
-      <section name="resources" type="DevExpress.Web.ResourcesConfigurationSection, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" requirePermission="false" />
-      <section name="bootstrap" type="DevExpress.Web.Bootstrap.BootstrapConfigurationSection, DevExpress.Web.Bootstrap.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" requirePermission="false" />
-    </sectionGroup>
-  </configSections>
-  <system.web>
-    <compilation debug="true" targetFramework="4.7.2">
-      <buildProviders>
-        <add extension=".rdlc" type="Microsoft.Reporting.RdlBuildProvider, Microsoft.ReportViewer.WebForms, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845DCD8080CC91" />
-      </buildProviders>
-      <assemblies>
-        <add assembly="Microsoft.ReportViewer.Common, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845DCD8080CC91" />
-        <add assembly="Microsoft.ReportViewer.WebForms, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845DCD8080CC91" />
-        <add assembly="DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="DevExpress.Data.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="System.Web.Entity, Version=4.0.0.0, Culture=neutral, PublicKeyToken=B77A5C561934E089" />
-        <add assembly="System.Data.Linq, Version=4.0.0.0, Culture=neutral, PublicKeyToken=B77A5C561934E089" />
-        <add assembly="System.Design, Version=4.0.0.0, Culture=neutral, PublicKeyToken=B03F5F7F11D50A3A" />
-        <add assembly="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=B77A5C561934E089" />
-        <add assembly="DevExpress.Printing.v20.1.Core, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <!--<add assembly="DevExpress.Office.v20.1.Core, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />-->
-        <add assembly="DevExpress.RichEdit.v20.1.Core, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="DevExpress.Web.ASPxThemes.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" />
-        <add assembly="DevExpress.Web.Bootstrap.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="DevExpress.Web.ASPxRichEdit.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="DevExpress.Web.ASPxSpreadsheet.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="DevExpress.Spreadsheet.v20.1.Core, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="DevExpress.Web.ASPxScheduler.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-        <add assembly="DevExpress.XtraScheduler.v20.1.Core, Version=20.1.7.0, Culture=neutral, PublicKeyToken=B88D1754D700E49A" />
-      </assemblies>
-    </compilation>
-    <httpRuntime targetFramework="4.7.2" />
-    <pages>
-      <namespaces>
-        <add namespace="System.Web.Optimization" />
-      </namespaces>
-      <controls>
-        <add assembly="Microsoft.AspNet.Web.Optimization.WebForms" namespace="Microsoft.AspNet.Web.Optimization.WebForms" tagPrefix="webopt" />
-      </controls>
-    </pages>
-    <httpHandlers>
-      <add path="Reserved.ReportViewerWebControl.axd" verb="*" type="Microsoft.Reporting.WebForms.HttpHandler, Microsoft.ReportViewer.WebForms, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845DCD8080CC91" validate="false" />
-      <add type="DevExpress.Web.ASPxHttpHandlerModule, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" verb="GET" path="DX.ashx" validate="false" />
-    </httpHandlers>
-    <httpModules>
-      <add type="DevExpress.Web.ASPxHttpHandlerModule, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" name="ASPxHttpHandlerModule" />
-    </httpModules>
-  </system.web>
-  <runtime>
-    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
-      <dependentAssembly>
-        <assemblyIdentity name="Antlr3.Runtime" publicKeyToken="eb42632606e9261f" />
-        <bindingRedirect oldVersion="0.0.0.0-3.5.0.2" newVersion="3.5.0.2" />
-      </dependentAssembly>
-      <dependentAssembly>
-        <assemblyIdentity name="Newtonsoft.Json" publicKeyToken="30ad4fe6b2a6aeed" />
-        <bindingRedirect oldVersion="0.0.0.0-12.0.0.0" newVersion="12.0.0.0" />
-      </dependentAssembly>
-      <dependentAssembly>
-        <assemblyIdentity name="WebGrease" publicKeyToken="31bf3856ad364e35" />
-        <bindingRedirect oldVersion="0.0.0.0-1.6.5135.21930" newVersion="1.6.5135.21930" />
-      </dependentAssembly>
-    </assemblyBinding>
-  </runtime>
-  <system.codedom>
-    <compilers>
-      <compiler language="c#;cs;csharp" extension=".cs" type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=2.0.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" warningLevel="4" compilerOptions="/langversion:default /nowarn:1659;1699;1701" />
-      <compiler language="vb;vbs;visualbasic;vbscript" extension=".vb" type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.VBCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=2.0.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" warningLevel="4" compilerOptions="/langversion:default /nowarn:41008 /define:_MYTYPE=\&quot;Web\&quot; /optionInfer+" />
-    </compilers>
-  </system.codedom>
-  <system.webServer>
-    <validation validateIntegratedModeConfiguration="false" />
-    <handlers>
-      <add name="ReportViewerWebControlHandler" preCondition="integratedMode" verb="*" path="Reserved.ReportViewerWebControl.axd" type="Microsoft.Reporting.WebForms.HttpHandler, Microsoft.ReportViewer.WebForms, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" />
-      <add type="DevExpress.Web.ASPxHttpHandlerModule, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" verb="GET" path="DX.ashx" name="ASPxHttpHandlerModule" preCondition="integratedMode" />
-    </handlers>
-    <modules runAllManagedModulesForAllRequests="true">
-      <add type="DevExpress.Web.ASPxHttpHandlerModule, DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" name="ASPxHttpHandlerModule" />
-    </modules>
-  </system.webServer>
-  <devExpress>
-    <themes enableThemesAssembly="true" styleSheetTheme="" theme="" customThemeAssemblies="" baseColor="" font="" />
-    <compression enableHtmlCompression="false" enableCallbackCompression="true" enableResourceCompression="true" enableResourceMerging="true" />
-    <settings accessibilityCompliant="false" bootstrapMode="" doctypeMode="Html5" rightToLeft="false" checkReferencesToExternalScripts="true" protectControlState="true" ieCompatibilityVersion="edge" />
-    <errors callbackErrorRedirectUrl="" />
-    <bootstrap allowClientObjectDeferredInitialization="true" mode="Bootstrap4" iconSet="Embedded" />
-  </devExpress>
-</configuration>
-
-<%@ Register Assembly="DevExpress.Web.Bootstrap.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.Bootstrap" TagPrefix="dx" %>
-
-<%@ Register Assembly="DevExpress.Web.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web" TagPrefix="dx" %>
-
-
-
-
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="WebForm3.aspx.cs" Inherits="WebApplication2.WebForm3" %>
+<%@ Page Language="C#" AutoEventWireup="True" CodeBehind="WebForm3.aspx.cs" Inherits="WebApplication2.WebForm3" %>
 
 <%@ Register Assembly="DevExpress.Web.Bootstrap.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.Bootstrap" TagPrefix="dx" %>
 
@@ -175,13 +32,27 @@ https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid
     overflow-x: hidden !important;  
     overflow-y: hidden !important;  
  </style>
-
+     <script type="text/javascript">
+         function ExportData() { CallbackPanel1.PerformCallback("ExportData"); }  
+     </script>
 </head>
 <body>
     <form id="form1" runat="server" >
-         <dx:ASPxCallbackPanel ID="ASPxCallbackPanel1" runat="server"> 
+        <asp:ScriptManager ID="ScriptManager1" runat="server"></asp:ScriptManager>
+        <asp:HyperLink ID="HyperLink1" runat="server" NavigateUrl="https://localhost:44357/Handler1.ashx">Export to Excel</asp:HyperLink>
+        <dx:ASPxGridViewExporter ID="ASPxGridViewExporter1" GridViewID="ASPxGridView1" runat="server"></dx:ASPxGridViewExporter>  
+
+     <%--     <dx:ASPxButton ID="ASPxButton1" runat="server" Text="Reload Panel" AutoPostBack="False">
+            <ClientSideEvents Click="function(s, e) {
+	callbackPanel1.PerformCallback("export");
+}" />
+        </dx:ASPxButton>--%>
+       <%--  <dx:ASPxCallbackPanel ID="ASPxCallbackPanel1" runat="server" ClientInstanceName="CallbackPanel1"
+         Height="173px" oncallback="ASPxCallbackPanel1_Callback">
                 <PanelCollection> 
-                    <dx:PanelContent runat="server">   
+                    <dx:PanelContent runat="server">  --%>
+        <asp:UpdatePanel ID="UpdatePanel1" runat="server">
+               <ContentTemplate>
         <div class="container-fluid form-group">
             <div class="panel panel-primary" id="accordion">
                 <div class="panel-heading clearfix">
@@ -200,6 +71,7 @@ https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid
                    <div class="panel-body">
                     <div class="row">
                         <div>
+                             <dx:ASPxMenu ID="ASPxMenu1" runat="server"></dx:ASPxMenu>
                             <label class="form-inline">参加单位：<input type="text" class="form-control" /></label>
                         </div>
                     </div>
@@ -350,11 +222,15 @@ https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid
                                         <table style="width: 100%">
                                             <tr>
                                                 <td style="padding: 4px">
-                                                              <dx:ASPxButton ID="ASPxButton1" AutoPostBack="true" runat="server" OnClick="btnTest_Click" Text="Close" Style="float: right">
-                                                        </dx:ASPxButton>
+                                                    <dx:ASPxButton ID="ASPxButton1" AutoPostBack="false" runat="server"  OnClick="btnTest_Click" Text="Close" Style="float: right">
+
+                                                    </dx:ASPxButton>
+                                                    <%--  <dx:ASPxButton ID="ASPxButton2" AutoPostBack="false" runat="server"  OnClick="btnTest_Click" Text="Close" Style="float: right">
+                                                         <ClientSideEvents Click="ExportData" />  
+                                                              </dx:ASPxButton>   --%>
                                                              </td>
                                             </tr>
-                                        </table>     
+                                        </table>    
                                       <%--  </div>--%>
                                     </DropDownWindowTemplate>
                                  <DropDownWindowStyle BackColor=#EDEDED>
@@ -366,8 +242,11 @@ https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid
                         <div class="col-md-4">
                             <label>填写日期 Apply date</label><br />
                             <div class="form-group">
-                    
+                                <dx:ASPxTextBox ID="ASPxTextBox1" runat="server" Width="170px"></dx:ASPxTextBox>
                                 <asp:Button ID="Button1" runat="server" class="btn btn-primary" Text="Button" OnClick="Button1_Click" /> 
+                                <dx:ASPxButton ID="ASPxButton3" AutoPostBack="false" runat="server" OnClick="btnTest1_Click" Text="Close" Style="float: right"><%-- OnClick="btnTest1_Click"--%> 
+                                                      <%--   <ClientSideEvents Click="ExportData" />  --%>
+                                                              </dx:ASPxButton>
                             </div>
                         </div>
                     </div>
@@ -405,7 +284,13 @@ https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid
                     </div>
                 </div>
         </div>
-
+                     </ContentTemplate>
+                 <Triggers>
+           <%--  <asp:AsyncPostBackTrigger ControlID="ASPxButton1" EventName="Click" />--%>
+            <%-- <asp:AsyncPostBackTrigger ControlID="ASPxButton2" EventName="Click" />--%>
+             <asp:AsyncPostBackTrigger ControlID="ASPxButton3" EventName="Click" />
+         </Triggers>
+</asp:UpdatePanel>
         <div id="default-popup-control-4" class="popup-target popup-target-sm"></div>
         <dx:BootstrapPopupControl runat="server"  ID="BootstrapPopupControl1" ShowOnPageLoad="false" PopupElementCssSelector="#default-popup-control-4"
             PopupHorizontalAlign="Center" PopupVerticalAlign="Middle" Width="500px" CloseAction="CloseButton"
@@ -414,9 +299,10 @@ https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid
                 <dx:ContentControl> 
                 </dx:ContentControl>
             </ContentCollection>
-        </dx:BootstrapPopupControl>   </dx:PanelContent>
+        </dx:BootstrapPopupControl>   
+           <%--  </dx:PanelContent>
                        </PanelCollection>
-      </dx:ASPxCallbackPanel>
+      </dx:ASPxCallbackPanel>--%>
     </form>
 </body>
 </html>
@@ -426,10 +312,14 @@ https://github.com/DevExpress-Examples/aspxgridview-how-to-export-a-colored-grid
  
  
 using DevExpress.Web;
+using DevExpress.Web.Export;
+using DevExpress.XtraPrinting;
+using DevExpress.XtraPrintingLinks;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Web;
 using System.Web.UI;
@@ -478,6 +368,27 @@ namespace WebApplication2
             }
 
         }
+
+        protected void btnTest1_Click(object sender, EventArgs e)
+        {
+            PrintingSystem ps = new PrintingSystem();
+
+            PrintableComponentLink link1 = new PrintableComponentLink(ps);
+            link1.Component = ASPxGridViewExporter1;
+            CompositeLink compositeLink = new CompositeLink(ps);
+            compositeLink.Links.AddRange(new object[] { link1 });
+
+            compositeLink.CreateDocument();
+            XlsExportOptions options = new XlsExportOptions();
+            using (MemoryStream stream = new MemoryStream())
+            {
+                compositeLink.PrintingSystem.ExportToXls(stream);
+                Session["hh"] = stream;
+                // WriteToResponse("filename", true, "xls", stream);
+            }
+            ps.Dispose();
+        }
+            
         protected void btnTest_Click(object sender, EventArgs e)
         {
             string unitStr = string.Empty;
@@ -535,392 +446,101 @@ namespace WebApplication2
         {
             ASPxGridView1.DataSource = workTable;
         }
+        protected void WriteToResponse(string fileName, bool saveAsFile, string fileFormat, MemoryStream stream)
+        {
+            byte[] mem = stream.GetBuffer();
+            if (Page == null || Page.Response == null) return;
+            string disposition = saveAsFile ? "attachment" : "inline";
+            Page.Response.Clear();
+            Page.Response.Buffer = false;
+            Page.Response.AppendHeader("Content-Type", string.Format("application/{0}", fileFormat));
+            Page.Response.AppendHeader("Content-Transfer-Encoding", "binary");
+            Page.Response.AppendHeader("Content-Disposition", string.Format("{0}; filename={1}.{2}", disposition, HttpUtility.UrlEncode(fileName).Replace("+", "%20"), fileFormat));
+            Page.Response.BinaryWrite(stream.ToArray());
+            Page.Response.End();
+        }
+        protected void ASPxCallbackPanel1_Callback(object sender, DevExpress.Web.CallbackEventArgsBase e)
+        {
+            try
+            {
+                
+
+                  
+                
+                //}
+                //GridViewLink lnk = new GridViewLink(ASPxGridViewExporter1);
+                //PrintingSystem ps = lnk.CreatePS();
+
+                //MemoryStream stream = new MemoryStream();
+                //string type = string.Empty;
+                //ps.ExportToXls(stream);
+                //type = "xls";
+                //Session["ExportStreame"] = stream;
+                //Session["type"] = type;
+                //ASPxGridViewExporter1.WriteXlsxToResponse("Customer-" + DateTime.Now.ToString("MM-dd-yyyy"));
+            }
+            catch (Exception ex)
+            { 
+            
+            }
+            //ASPxCallbackPanel panel = (ASPxCallbackPanel)sender;
+            //NoCommentsLabel.Visible = false;
+            //Thread.Sleep(3000);
+
+            //ASPxLabel comment = new ASPxLabel()
+            //{
+            //    Text = string.Format("[{0}]\n{1}\n\n",
+            //        DateTime.Now.ToLocalTime(),
+            //        !string.IsNullOrEmpty(TextBox.Text) ? TextBox.Text : "Empty comment"
+            //    ),
+            //    CssClass = "comment"
+            //};
+
+            //List<ASPxLabel> comments = (List<ASPxLabel>)Session["comments"] ?? new List<ASPxLabel>();
+
+            //comments.Add(comment);
+            //panel.Controls.Add(comment);
+            //Session["comments"] = comments;
+
+            //CountLabel.Text = "Comments Count : " + comments.Count;
+        }
     }
 }
 
-
- <table style="width: 100%">
-                <tr>
-                    <td style="padding: 4px">
-                        <dx:ASPxButton ID="ASPxButton1" AutoPostBack="False" runat="server" Text="Close" style="float: right">
-                            <ClientSideEvents Click="function(s, e){ checkComboBox.HideDropDown(); }" />
-                        </dx:ASPxButton>
-                    </td>
-                </tr>
-            </table>
-
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="Test._Default" %>
- http://kodekodekode.blogspot.com/2013/10/create-dynamic-item-checkbox-on.html
-<%@ Register Assembly="DevExpress.Web.v12.2, Version=12.2.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.ASPxEditors" TagPrefix="dx" %>
- 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
- 
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head runat="server">
-    <title></title>
-</head>
-<body>
-    <form id="form" runat="server">
-        <div>
-            <dx:ASPxComboBox ID="cbxM" runat="server" ValueType="System.String" ValueField="ID">
-                <Columns>
-                    <Dx: ListBoxColumn FieldName = "Name" Caption = "name" />
-                </Columns>
-            </dx:ASPxComboBox>
-            <dx:ASPxListBox ID="listBox" runat="server" ValueType="System.String" SelectionMode="CheckColumn" ValueField="ID" Height="500px" TextField="Name">
-                <Columns>
-                                         <Dx: ListBoxColumn FieldName = "Name" Caption = "name" />
-                </Columns>
-            </dx:ASPxListBox>
-            <dx:ASPxButton ID="btnTest" runat="server" Text="Test" OnClick="btnTest_Click"></dx:ASPxButton>
-        </div>
-    </form>
-</body>
-
-
-
-namespace Test
-{
-    public partial class _Default : System.Web.UI.Page
-    {
-        TestEntities ctx = new TestEntities();
-        protected void Page_Load(object sender, EventArgs e)
-        {
-            this.listBox.DataSource = ctx.UnitType;
-            this.listBox.DataBind();
-            BindMaterial();
-        }
- 
-        private void BindMaterial()
-        {
-            this.cbxM.DataSource = ctx.Material;
-            this.cbxM.DataBind();
-        }
- 
-        protected void btnTest_Click(object sender, EventArgs e)
-        {
-            string unitStr = string.Empty;
-            foreach (ListEditItem item in listBox.Items)
-            {
-                if (item.Selected)
-                {
-                    unitStr += item.Value + ",";
-                }
-            }
-            unitStr = unitStr.TrimEnd(',');
-            Mapping mapping = new Mapping();
-            mapping.MaterialReference.EntityKey = new System.Data.EntityKey("entities.User", "ID", userID);
-        }
-    }
-
-
-
-
-
-
-
-
-https://demos.devexpress.com/ASPxEditorsDemos/ASPxDropDownEdit/CheckComboBox.aspx
- objshanudgvHelper.DGVMasterGridClickEvents(Master_shanuDGV, Detail_shanuDGV, Master_shanuDGV.Columns["img"].Index, ShanuEventTypes.cellContentClick, ShanuControlTypes.ImageColumn, detailTableList, "Order_No");
-  https://www.programmersought.com/article/43312188461/          
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Windows.Forms;
-using System.Data;
+using System.Web;
+using System.Web.SessionState;
 
-/// <summary>
-/// Author      : Shanu
-/// Create date : 2014-11-11
-/// Description : ShanuDGVHelper
-/// Latest
-/// Modifier    : Shanu
-/// Modify date : 2014-11-11
-/// </summary>
-namespace ShanuNestedDataGridView.Helper
+namespace WebApplication2
 {
-    class ShanuDGVHelper
+    /// <summary>
+    /// Handler1 的摘要描述
+    /// </summary>
+    public class Handler1 : IHttpHandler, IRequiresSessionState
     {
-        #region Variables
-        public DataGridView MasterDGVs = new DataGridView();
-        public DataGridView DetailDGVs = new DataGridView();
-        List<int> listcolumnIndex;
-        static String ImageName = "toggle.png";
-        String FilterColumnName = "";
-        DataTable DetailgridDT;
-        int gridColumnIndex = 0;
-       
 
-        DateTimePicker shanuDateTimePicker = new DateTimePicker();
-        DataGridView shanuNestedDGV = new DataGridView();
-        String EventFucntions;
-        # endregion
-
-        //Set all the telerik Grid layout
-        #region Layout
-
-        public static void Layouts(DataGridView ShanuDGV, Color BackgroundColor, Color RowsBackColor, Color AlternatebackColor, Boolean AutoGenerateColumns, Color HeaderColor, Boolean HeaderVisual, Boolean RowHeadersVisible, Boolean AllowUserToAddRows)
+        public void ProcessRequest(HttpContext context)
         {
-            //Grid Back ground Color
-            ShanuDGV.BackgroundColor = BackgroundColor;
-
-            //Grid Back Color
-            ShanuDGV.RowsDefaultCellStyle.BackColor = RowsBackColor;
-
-            //GridColumnStylesCollection Alternate Rows Backcolr
-            ShanuDGV.AlternatingRowsDefaultCellStyle.BackColor = AlternatebackColor;
-
-            // Auto generated here set to tru or false.
-            ShanuDGV.AutoGenerateColumns = AutoGenerateColumns;
-            //  ShanuDGV.DefaultCellStyle.Font = new Font("Verdana", 10.25f, FontStyle.Regular);
-            // ShanuDGV.ColumnHeadersDefaultCellStyle.Font = new Font("Calibri", 11, FontStyle.Regular);
-
-            //Column Header back Color
-            ShanuDGV.ColumnHeadersDefaultCellStyle.BackColor = HeaderColor;
-            //
-            ShanuDGV.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            //header Visisble
-            ShanuDGV.EnableHeadersVisualStyles = HeaderVisual;
-
-            // Enable the row header
-            ShanuDGV.RowHeadersVisible = RowHeadersVisible;
-
-            // to Hide the Last Empty row here we use false.
-            ShanuDGV.AllowUserToAddRows = AllowUserToAddRows;
+            context.Response.AddHeader("content-disposition", "attachment; filename=FileName.xls");
+            context.Response.ContentType = "application/ms-excel";
+            HttpRequest request = context.Request;
+            HttpResponse response = context.Response;
+            MemoryStream ms = (MemoryStream)context.Session["hh"];
+            byte[] imageBytes = ms.ToArray();
+            context.Response.OutputStream.Write(imageBytes, 0, imageBytes.Length);
+            context.Response.Flush();
+            System.Web.HttpContext.Current.ApplicationInstance.CompleteRequest();
         }
-        #endregion
 
-        //Add your grid to your selected Control and set height,width,position of your grid.
-        #region Variables
-        public static void Generategrid(DataGridView ShanuDGV, Control cntrlName, int width, int height, int xval, int yval)
+        public bool IsReusable
         {
-            ShanuDGV.Location = new Point(xval, yval);
-            ShanuDGV.Size = new Size(width, height);
-            //ShanuDGV.Dock = docktyope.
-            cntrlName.Controls.Add(ShanuDGV);
-        }
-        #endregion
-
-        //Template Column In this column we can add Textbox,Lable,Check Box,Dropdown box and etc
-        #region Templatecolumn
-        public static void Templatecolumn(DataGridView ShanuDGV, ShanuControlTypes ShanuControlTypes, String cntrlnames, String Headertext, String ToolTipText, Boolean Visible, int width, DataGridViewTriState Resizable, DataGridViewContentAlignment cellAlignment, DataGridViewContentAlignment headerAlignment, Color CellTemplateBackColor, DataTable dtsource, String DisplayMember, String ValueMember, Color CellTemplateforeColor)
-        {
-            switch (ShanuControlTypes)
+            get
             {
-                case ShanuControlTypes.CheckBox:
-                    DataGridViewCheckBoxColumn dgvChk = new DataGridViewCheckBoxColumn();
-                    dgvChk.ValueType = typeof(bool);
-                    dgvChk.Name = cntrlnames;
-
-                    dgvChk.HeaderText = Headertext;
-                    dgvChk.ToolTipText = ToolTipText;
-                    dgvChk.Visible = Visible;
-                    dgvChk.Width = width;
-                    dgvChk.SortMode = DataGridViewColumnSortMode.Automatic;
-                    dgvChk.Resizable = Resizable;
-                    dgvChk.DefaultCellStyle.Alignment = cellAlignment;
-                    dgvChk.HeaderCell.Style.Alignment = headerAlignment;
-                    if (CellTemplateBackColor.Name.ToString() != "Transparent")
-                    {
-                        dgvChk.CellTemplate.Style.BackColor = CellTemplateBackColor;
-                    }
-                    dgvChk.DefaultCellStyle.ForeColor = CellTemplateforeColor;
-                    ShanuDGV.Columns.Add(dgvChk);
-                    break;
-                case ShanuControlTypes.BoundColumn:
-                    DataGridViewColumn dgvbound = new DataGridViewTextBoxColumn();
-                    dgvbound.DataPropertyName = cntrlnames;
-                    dgvbound.Name = cntrlnames;
-                    dgvbound.HeaderText = Headertext;
-                    dgvbound.ToolTipText = ToolTipText;
-                    dgvbound.Visible = Visible;
-                    dgvbound.Width = width;
-                    dgvbound.SortMode = DataGridViewColumnSortMode.Automatic;
-                    dgvbound.Resizable = Resizable;
-                    dgvbound.DefaultCellStyle.Alignment = cellAlignment;
-                    dgvbound.HeaderCell.Style.Alignment = headerAlignment;
-                    dgvbound.ReadOnly = true;
-                    if (CellTemplateBackColor.Name.ToString() != "Transparent")
-                    {
-                        dgvbound.CellTemplate.Style.BackColor = CellTemplateBackColor;
-                    }
-                    dgvbound.DefaultCellStyle.ForeColor = CellTemplateforeColor;
-                    ShanuDGV.Columns.Add(dgvbound);
-                    break;
-                case ShanuControlTypes.TextBox:
-                    DataGridViewTextBoxColumn dgvText = new DataGridViewTextBoxColumn();
-                    dgvText.ValueType = typeof(decimal);
-                    dgvText.DataPropertyName = cntrlnames;
-                    dgvText.Name = cntrlnames;
-                    dgvText.HeaderText = Headertext;
-                    dgvText.ToolTipText = ToolTipText;
-                    dgvText.Visible = Visible;
-                    dgvText.Width = width;
-                    dgvText.SortMode = DataGridViewColumnSortMode.Automatic;
-                    dgvText.Resizable = Resizable;
-                    dgvText.DefaultCellStyle.Alignment = cellAlignment;
-                    dgvText.HeaderCell.Style.Alignment = headerAlignment;
-                    if (CellTemplateBackColor.Name.ToString() != "Transparent")
-                    {
-                        dgvText.CellTemplate.Style.BackColor = CellTemplateBackColor;
-                    }
-                    dgvText.DefaultCellStyle.ForeColor = CellTemplateforeColor;
-                    ShanuDGV.Columns.Add(dgvText);
-                    break;
-                case ShanuControlTypes.ComboBox:
-                    DataGridViewComboBoxColumn dgvcombo = new DataGridViewComboBoxColumn();
-                    dgvcombo.ValueType = typeof(decimal);
-                    dgvcombo.Name = cntrlnames;
-                    dgvcombo.DataSource = dtsource;
-                    dgvcombo.DisplayMember = DisplayMember;
-                    dgvcombo.ValueMember = ValueMember;
-                    dgvcombo.Visible = Visible;
-                    dgvcombo.Width = width;
-                    dgvcombo.SortMode = DataGridViewColumnSortMode.Automatic;
-                    dgvcombo.Resizable = Resizable;
-                    dgvcombo.DefaultCellStyle.Alignment = cellAlignment;
-                    dgvcombo.HeaderCell.Style.Alignment = headerAlignment;
-                    if (CellTemplateBackColor.Name.ToString() != "Transparent")
-                    {
-                        dgvcombo.CellTemplate.Style.BackColor = CellTemplateBackColor;
-
-                    }
-                    dgvcombo.DefaultCellStyle.ForeColor = CellTemplateforeColor;
-                    ShanuDGV.Columns.Add(dgvcombo);
-                    break;
-
-                case ShanuControlTypes.Button:
-                    DataGridViewButtonColumn dgvButtons = new DataGridViewButtonColumn();
-                    dgvButtons.Name = cntrlnames;
-                    dgvButtons.FlatStyle = FlatStyle.Popup;
-                    dgvButtons.DataPropertyName = cntrlnames;
-                    dgvButtons.Visible = Visible;
-                    dgvButtons.Width = width;
-                    dgvButtons.SortMode = DataGridViewColumnSortMode.Automatic;
-                    dgvButtons.Resizable = Resizable;
-                    dgvButtons.DefaultCellStyle.Alignment = cellAlignment;
-                    dgvButtons.HeaderCell.Style.Alignment = headerAlignment;
-                    if (CellTemplateBackColor.Name.ToString() != "Transparent")
-                    {
-                        dgvButtons.CellTemplate.Style.BackColor = CellTemplateBackColor;
-                    }
-                    dgvButtons.DefaultCellStyle.ForeColor = CellTemplateforeColor;
-                    ShanuDGV.Columns.Add(dgvButtons);
-                    break;
-                case ShanuControlTypes.ImageColumn:
-                    DataGridViewImageColumn dgvnestedBtn = new DataGridViewImageColumn();
-                    dgvnestedBtn.Name = cntrlnames;
-                    ImageName = "expand.png";
-                  
-                    dgvnestedBtn.Image = Image.FromFile(ImageName);//global::ShanuDGVHelper_Demo.Properties.Resources.toggle;
-                    // dgvnestedBtn.DataPropertyName = cntrlnames;
-                    dgvnestedBtn.Visible = Visible;
-                    dgvnestedBtn.Width = width;
-                    dgvnestedBtn.SortMode = DataGridViewColumnSortMode.Automatic;
-                    dgvnestedBtn.Resizable = Resizable;
-                    dgvnestedBtn.DefaultCellStyle.Alignment = cellAlignment;
-                    dgvnestedBtn.HeaderCell.Style.Alignment = headerAlignment;
-                    ShanuDGV.Columns.Add(dgvnestedBtn);
-                    break;
+                return false;
             }
-
-
-
-
         }
-
-        #endregion
-
-
-        // Image Colukmn Click evnet
-        #region Image Colukmn Click Event
-        public void DGVMasterGridClickEvents(DataGridView ShanuMasterDGV, DataGridView ShanuDetailDGV, int columnIndexs, ShanuEventTypes eventtype, ShanuControlTypes types,DataTable DetailTable,String FilterColumn)
-        {
-            MasterDGVs = ShanuMasterDGV;
-            DetailDGVs = ShanuDetailDGV;
-            gridColumnIndex = columnIndexs;
-            DetailgridDT = DetailTable;
-            FilterColumnName = FilterColumn;
-           
-            MasterDGVs.CellContentClick += new DataGridViewCellEventHandler(masterDGVs_CellContentClick_Event);
-
-
-        }
-        private void masterDGVs_CellContentClick_Event(object sender, DataGridViewCellEventArgs e)
-        {
-           
-            DataGridViewImageColumn cols = (DataGridViewImageColumn)MasterDGVs.Columns[0];
-         
-           // cols.Image = Image.FromFile(ImageName);
-            MasterDGVs.Rows[e.RowIndex].Cells[0].Value = Image.FromFile("expand.png");
-
-             if (e.ColumnIndex == gridColumnIndex)
-             {
-                
-            
-                 if (ImageName == "expand.png")
-                 {
-                     DetailDGVs.Visible = true;
-                     ImageName = "toggle.png";
-                     // cols.Image = Image.FromFile(ImageName);
-                     MasterDGVs.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = Image.FromFile(ImageName);
-
-
-                     String Filterexpression = MasterDGVs.Rows[e.RowIndex].Cells[FilterColumnName].Value.ToString();
-
-                     MasterDGVs.Controls.Add(DetailDGVs);
-
-                     Rectangle dgvRectangle = MasterDGVs.GetCellDisplayRectangle(1, e.RowIndex, true);
-                     DetailDGVs.Size = new Size(MasterDGVs.Width - 200, 200);
-                     DetailDGVs.Location = new Point(dgvRectangle.X, dgvRectangle.Y + 20);
-
-
-                     DataView detailView = new DataView(DetailgridDT);
-                     detailView.RowFilter = FilterColumnName + " = '" + Filterexpression + "'";
-                     if (detailView.Count <= 0)
-                     {
-                         MessageBox.Show("No Details Found");
-                     }
-                     DetailDGVs.DataSource = detailView;
-
-
-                 }
-                 else
-                 {
-                     ImageName = "expand.png";
-                     //  cols.Image = Image.FromFile(ImageName);
-                     MasterDGVs.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = Image.FromFile(ImageName);
-                     DetailDGVs.Visible = false;
-                 }                 
-             }
-             else
-             {
-                 DetailDGVs.Visible = false;
-                 
-             }
-        }
-        #endregion
-
-        public void DGVDetailGridClickEvents(DataGridView ShanuDetailDGV)
-        {
-          
-            DetailDGVs = ShanuDetailDGV;
-
-            DetailDGVs.CellContentClick += new DataGridViewCellEventHandler(detailDGVs_CellContentClick_Event);
-
-
-        }
-          private void detailDGVs_CellContentClick_Event(object sender, DataGridViewCellEventArgs e)
-          {
-              MessageBox.Show("Detail grid Clicked : You clicked on " + DetailDGVs.Rows[e.RowIndex].Cells[e.ColumnIndex].Value);
-          }
-
     }
 }
-//Enam decalaration for DataGridView Column Type ex like Textbox Column ,Button Column
-public enum ShanuControlTypes { BoundColumn, TextBox, ComboBox, CheckBox, DateTimepicker, Button, NumericTextBox, ColorDialog, ImageColumn }
-public enum ShanuEventTypes { CellClick, cellContentClick, EditingControlShowing }

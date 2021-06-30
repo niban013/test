@@ -1,3 +1,9 @@
+<input id="openBtn" type="button" value="Open popup" 
+       onclick="myPopup.SetContentUrl('http://www.google.com');myPopup.Show();" />                
+
+<dx:ASPxPopupControl runat="server" ClientInstanceName="myPopup" Modal="True" 
+                     CloseAction="CloseButton" Width="500px" Height="400px"/>
+
 <dx:ASPxPopupControl ID="popup" runat="server" ContentUrl="~/ContentPageWithTextBox.aspx"
         Top="100" ClientInstanceName="clientPopup" CloseAction="CloseButton">
         <ClientSideEvents Shown="OnShown" />

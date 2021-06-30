@@ -1,8 +1,8 @@
-( arr => {
-    arr.forEach( item => {
-        item.remove = item.remove || () => { this.parentNode.removeChild(this) }
-    })
-}) ( [Element.prototype, CharacterData.prototype, DocumentType.prototype] )
+(function() {
+  function remove() { this.parentNode && this.parentNode.removeChild(this); }
+  if (!Element.prototype.remove) Element.prototype.remove = remove;
+  if (Text && !Text.prototype.remove) Text.prototype.remove = remove;
+})();
 
 if (!('remove' in Element.prototype)) {
   Element.prototype['remove'] = function () {

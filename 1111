@@ -1,3 +1,12 @@
+
+function ClosePopup() {  
+    ASPxClientPopupControlInstance.Hide();  
+}  
+C#
+protected void ..._Click(object sender, System.EventArgs e) {  
+    ...  
+    ClientScript.RegisterStartupScript(GetType(), "ANY_KEY", "window.parent.ClosePopup();", true);  
+}  
 <script type="text/javascript">  
     function OnCloseButtonClick(s, e) {  
         var parentWindow = window.parent;  

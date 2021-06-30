@@ -1,3 +1,10 @@
+<script type="text/javascript">  
+    function OnCloseButtonClick(s, e) {  
+        var parentWindow = window.parent;  
+        parentWindow.popupWindow2.HideWindow(parentWindow.popupWindow2.GetWindow(0));  
+    }  
+</script> 
+
 <input id="openBtn" type="button" value="Open popup" 
        onclick="myPopup.SetContentUrl('http://www.google.com');myPopup.Show();" />                
 

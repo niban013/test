@@ -1,3 +1,16 @@
+
+$.showModalDialog({
+        url: url,
+        dialogArguments: '課程資料查詢',
+        height: 500,
+        width: 900,
+        scrollable: false,
+        onClose: function()
+        {
+            var returnedValue = this.returnValue;
+            $('#txt-cono').text(returnedValue.cono);
+        }
+    });
 <%@ Page Language="C#" AutoEventWireup="True" CodeBehind="WebForm3.aspx.cs" Inherits="WebApplication2.WebForm3" %>
 
 <%@ Register Assembly="DevExpress.Web.Bootstrap.v20.1, Version=20.1.7.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" Namespace="DevExpress.Web.Bootstrap" TagPrefix="dx" %>

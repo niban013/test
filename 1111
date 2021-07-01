@@ -1,3 +1,92 @@
+OnCustomButtonCallback="ASPxGridView1_CustomButtonCallback">
+                <ClientSideEvents CustomButtonClick="function(s,e){onASPxGridView1ButtonClick(s, e);}"  EndCallback="function(s,e){EndCallBack(s, e);}" />
+ protected void ASPxGridView1_CustomButtonCallback(object sender, DevExpress.Web.ASPxGridViewCustomButtonCallbackEventArgs e)
+        {
+            if (e.ButtonID == "EditButton")
+            {
+                ASPxGridView view = sender as ASPxGridView;
+                DataRowView dv = view.GetRow(view.FocusedRowIndex) as DataRowView;
+
+                //New method to get the value of quasi account number
+                int current_row_zzbh_val = 0;
+                int.TryParse(view.GetRowValues(e.VisibleIndex, "Quasi Account Number").ToString(), out current_row_zzbh_val);
+
+                //Original method to get the value of quasi-account number
+                //int current_row_zzbh_val = Convert.ToInt32(dv.Row["quasi account number"]);
+
+                List<int> no_zero_zzbh_list = new List<int> { };
+                DataTable zzbh_dt = SqlHelper.ExecuteDataTable("select distinct standard account number from standard account book", new SqlParameter[] { });
+                if (zzbh_dt.Rows.Count > 0)
+                {
+                    foreach (DataRow dr in zzbh_dt.Rows)
+                    {
+                        int zzbh_val = Convert.ToInt32(dr["Quasi Account Number"]);
+                        object o_zzbhhj = SqlHelper.ExecuteScalar("select sum(receipt and payment amount) as receipt and payment amount from quasi-ledger account where quasi-ledger number=" + zzbh_val, new SqlParameter[] { });
+                        double zzbhhj_val = Convert.IsDBNull(o_zzbhhj) ? 0 : Convert.ToDouble(o_zzbhhj);
+                        if (zzbhhj_val != 0)
+                        {
+                            no_zero_zzbh_list.Add(zzbh_val);
+                        }
+                    }
+                    //If there is a quasi-account number whose quasi-account number is not equal to 0
+                    if (no_zero_zzbh_list.Count > 0)
+                    {
+                        //If the current quasi-account number is not included in the set of quasi-account numbers whose quasi-account number is not equal to 0, it will prompt and tell the operator which quasi-account number can be modified!
+                        if (!no_zero_zzbh_list.Contains(current_row_zzbh_val))
+                        {
+                            string no_zero_zzbh_str = "";
+                            for (int i = 0; i < no_zero_zzbh_list.Count; i++)
+                            {
+                                no_zero_zzbh_str += no_zero_zzbh_list[i].ToString().Trim() + ";";
+                            }
+                            no_zero_zzbh_str = no_zero_zzbh_str.Substring(0, no_zero_zzbh_str.Length - 1);
+                            view.JSProperties["cpErrorMsg"] = "The current line cannot be modified! Because there is a quasi-account number whose quasi-account number is not equal to 0! You can only modify the quasi-account number:" + no_zero_zzbh_str + "record of!";
+                            view.DataBind();
+
+                        }
+                        else
+                        {
+                            //If it is included in the collection whose quasi-account number is not 0, it can be modified
+                            view.JSProperties["cpErrorMsg"] = "";//The key here is: cp in cpErrorMsg must be lowercase
+                            view.DataBind();
+                            ASPxGridView1.StartEdit(view.FocusedRowIndex);
+                        }
+                    }
+                    else
+                    {
+                        //If there is no record with quasi-account number not equal to 0, you can modify all rows
+                        view.JSProperties["cpErrorMsg"] = "";
+                        view.DataBind();
+                        ASPxGridView1.StartEdit(view.FocusedRowIndex);
+                    }
+
+
+                }
+            }
+       }
+ function onASPxGridView1ButtonClick(s, e) {
+                switch (e.buttonID) {
+                    case "EditButton":
+                        e.processOnServer = true;
+                       
+                        break;
+                    default: break;
+                }
+            }
+
+function EndCallBack(s, e) {
+        if (s.cpErrorMsg != "") {
+            alert(s.cpErrorMsg);
+        }
+    }
+
+
+
+
+
+
+
+
 https://docs.devexpress.com/AspNet/js-ASPxClientGridView.UpdateEdit
   function checkBrowser() {
           

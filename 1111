@@ -1,3 +1,21 @@
+DataTable dt = new DataTable();  
+foreach (GridViewColumn column in ASPxGridView1.VisibleColumns) {  
+    var col = column as GridViewDataColumn;  
+    if (col != null)  
+        dt.Columns.Add(col.FieldName);  
+}  
+for (int i = 0; i < ASPxGridView1.VisibleRowCount; i++) {  
+    DataRow row = dt.NewRow();  
+    foreach (GridViewColumn column in ASPxGridView1.VisibleColumns) {  
+        var col = column as GridViewDataColumn;  
+        if (col != null) {  
+            var cellValue = ASPxGridView1.GetRowValues(i, col.FieldName);  
+            row[col.FieldName] = cellValue;  
+        }  
+    }  
+    dt.Rows.Add(row);  
+}  
+
 
 https://www.codeproject.com/Articles/4870/Connect-to-DB2-from-Microsoft-NET
 OnCustomButtonCallback="ASPxGridView1_CustomButtonCallback">

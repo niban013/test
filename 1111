@@ -1,3 +1,11 @@
+
+   var duplicates = GetTable().AsEnumerable()
+                .GroupBy(i => new { Name = i.Field<string>("Name"), Subject = i.Field<string>("Subject") })
+                .Where(g => g.Count() > 1)
+                .Select(g => new { g.Key.Name, g.Key.Subject, 
+                    Values = string.Join(",",g.SelectMany(i => i["Index"].ToString()).Distinct().ToList()) }).ToList();
+
+
 <%@ Page Language="C#" AutoEventWireup="True" CodeBehind="WebForm4.aspx.cs" Inherits="WebApplication2.WebForm4" %>
 
 <!DOCTYPE html>

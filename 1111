@@ -5,7 +5,7 @@
                 .Select(g => new { g.Key.Name, g.Key.Subject, 
                     Values = string.Join(",",g.SelectMany(i => i["Index"].ToString()).Distinct().ToList()) }).ToList();
 
-
+  <asp:AsyncPostBackTrigger ControlID="ddlFruits" EventName="SelectedIndexChanged" />
 <%@ Page Language="C#" AutoEventWireup="True" CodeBehind="WebForm4.aspx.cs" Inherits="WebApplication2.WebForm4" %>
 
 <!DOCTYPE html>

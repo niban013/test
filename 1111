@@ -1,5 +1,8 @@
 
-   var duplicates = GetTable().AsEnumerable()
+
+https://www.aspsnippets.com/Articles/Using-jQuery-UI-Dialog-Modal-Popup-with-ASPNet-AJAX-UpdatePanel.aspx
+
+var duplicates = GetTable().AsEnumerable()
                 .GroupBy(i => new { Name = i.Field<string>("Name"), Subject = i.Field<string>("Subject") })
                 .Where(g => g.Count() > 1)
                 .Select(g => new { g.Key.Name, g.Key.Subject, 

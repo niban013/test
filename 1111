@@ -1,4 +1,6 @@
 
+  var duplicates1 = GetTable().AsEnumerable().Where(g => g["Name"].ToString().Length > 2)
+               .Select(g => g["Index"].ToString()).ToList();
 
 https://www.aspsnippets.com/Articles/Using-jQuery-UI-Dialog-Modal-Popup-with-ASPNet-AJAX-UpdatePanel.aspx
 

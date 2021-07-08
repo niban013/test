@@ -1,3 +1,7 @@
+
+ASPxComboBox combo2 = ((ASPxComboBox)grid.FindEditRowCellTemplateControl(
+                grid.Columns["Category2ID"] as GridViewDataComboBoxColumn, "Cat2"));
+
 function getBroswer(){
     var Sys = {};
     var ua = navigator.userAgent.toLowerCase();

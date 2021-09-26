@@ -1,5 +1,22 @@
 
-
+  <CollectionView.EmptyView>
+                                <ContentView>
+                              
+                                    <StackLayout HorizontalOptions="CenterAndExpand"
+                             VerticalOptions="CenterAndExpand">
+                                        <ActivityIndicator x:Name="Loading" IsRunning="{Binding IsBusy}"
+                         HorizontalOptions="Center"
+                         VerticalOptions="Center"
+                         Color="Black"/>
+                                        <Label Text="No results matched your filter."   IsVisible="{Binding IsBusy}"
+                           Margin="10,25,10,10"
+                           FontAttributes="Bold"
+                           FontSize="18"
+                           HorizontalOptions="Fill"
+                           HorizontalTextAlignment="Center" />
+                                    </StackLayout>
+                                </ContentView>
+                            </CollectionView.EmptyView>
 
 docker-compose --env-file ./prd.env config
 

@@ -1,3 +1,82 @@
+
+
+using Acr.UserDialogs;
+using Autofac;
+using Autofac.Extras.CommonServiceLocator;
+using CommonServiceLocator;
+using DataGridSample.Services;
+using DataGridSample.ViewModels;
+using System;
+using Xamarin.Essentials;
+using Xamarin.Forms;
+namespace DataGridSample
+{
+    public partial class App : Application
+    {
+        public static IContainer Container;
+
+        public static void RegisterDependencies(Action<ContainerBuilder> builder)
+        {
+            //ContainerBuilder containerBuilder = new ContainerBuilder();
+            //containerBuilder.RegisterType<BaseViewModel>().AsSelf();
+            //containerBuilder.RegisterType<ContactsViewModel>().AsSelf();
+
+            ////  containerBuilder.RegisterType<EmployeeService>().As<IEmployeeService>();
+            //containerBuilder.RegisterGeneric(typeof(DataStore<>)).As(typeof(IDataStore<>)).InstancePerRequest();
+            //IContainer container = containerBuilder.Build();
+
+            //AutofacServiceLocator autofacServiceLocator = new AutofacServiceLocator(container);
+            //ServiceLocator.SetLocatorProvider(() => autofacServiceLocator);
+
+            var containerBuilder = new ContainerBuilder();
+
+            //ViewModels
+            containerBuilder.RegisterType<BaseViewModel>().SingleInstance();
+            containerBuilder.RegisterType<ContactsViewModel>().AsSelf().SingleInstance();
+            //Services
+            containerBuilder.RegisterGeneric(typeof(DataStore<>)).As(typeof(IDataStore<>)).SingleInstance();
+
+            //Invoke native dependencies from MainActivity or AppDelegate
+            builder.Invoke(containerBuilder);
+
+            Container = containerBuilder.Build();
+
+        }
+
+    
+        public App()
+        {
+            InitializeComponent(); 
+            Xamarin.Forms.DataGrid.DataGridComponent.Init();
+            MainPage = new NavigationPage(new MainPage());
+        }
+        private void ConnectivityChanged(object sender, ConnectivityChangedEventArgs e)
+        {
+            if (e.NetworkAccess != NetworkAccess.Internet)
+                UserDialogs.Instance.Toast("Oops, looks like you don't have internet connection :(");
+            else
+                UserDialogs.Instance.Toast("Your internet connection is back :)");
+
+        }
+        protected override void OnStart()
+        {
+            Connectivity.ConnectivityChanged += ConnectivityChanged;
+            // Handle when your app starts
+        }
+
+        protected override void OnSleep()
+        {
+            Connectivity.ConnectivityChanged -= ConnectivityChanged;
+            // Handle when your app sleeps
+        }
+
+        protected override void OnResume()
+        {
+            Connectivity.ConnectivityChanged += ConnectivityChanged;
+            // Handle when your app resumes
+        }
+    }
+}
 https://github.com/jsuarezruiz/XamarinFormsStateTriggers/blob/master/src/XamarinFormsStateTriggers.Sample/Views/NetworkConnectionStateTriggerView.xaml
 
 https://xamgirl.com/handling-connection-changes-in-xamarin-forms/

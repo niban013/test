@@ -1,3 +1,50 @@
+ <dg:DataGridColumn Title="Win" PropertyName="Win" Width="0.7*">
+                    <dg:DataGridColumn.CellTemplate>
+                        <DataTemplate>
+                            <Label x:Name="pbl" Text="{Binding .}" TextColor="Black" />
+                        </DataTemplate>
+                    </dg:DataGridColumn.CellTemplate>
+                </dg:DataGridColumn>
+   var ViewModel = new ViewModels.MainViewModel();
+            BindingContext = ViewModel;
+            var newColumn = new DataGridColumn()
+            {
+                Title = "Win",
+                PropertyName = "Win",
+                //HeaderText = $"Distance {i + 1}",
+                //MappingName = $"Distances[{i}].Distance",
+                Width = new GridLength(0.7, GridUnitType.Star)
+            };
+            var newColumn1 = pp.Columns[pp.Columns.Count - 1];
+            pp.Columns.Remove(newColumn1);
+            //////newColumn.Title = "Win";
+            //////newColumn.PropertyName = "Win";
+            Xamarin.Forms.DataTemplate templateColumn = new Xamarin.Forms.DataTemplate(() =>
+            {
+                var entry = new Entry()
+                {
+                    Keyboard = Keyboard.Numeric,
+                    TextColor = Color.Black,
+                    HorizontalTextAlignment = Xamarin.Forms.TextAlignment.Center,
+                    VerticalTextAlignment = Xamarin.Forms.TextAlignment.Center,
+                    //Text = "{Binding .}"
+                };
+                entry.SetBinding(Entry.TextProperty, ".");
+                return entry;
+            });
+            //////newColumn.Title = "kkk";
+
+            newColumn.CellTemplate = templateColumn;
+
+            pp.Columns.Add(newColumn);
+            pp.ItemsSource = ((MainViewModel)BindingContext).Teams;
+
+
+
+
+
+
+
 https://www.tektutorialshub.com/crystal-reports/crystal-reports-download-for-visual-studio/
 https://www.buildinsider.net/mobile/xamarintips/0008https://stackoverflow.com/questions/44432920/how-can-i-launch-a-android-activity-from-xamarin-forms-page
 https://github.com/rvsngh/captureandshare

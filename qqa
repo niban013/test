@@ -1,3 +1,6 @@
+             <ScrollView Orientation="Both" HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand">
+
+ 
  <dg:DataGridColumn Title="Win" PropertyName="Win" Width="0.7*">
                     <dg:DataGridColumn.CellTemplate>
                         <DataTemplate>

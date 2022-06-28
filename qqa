@@ -1,4 +1,79 @@
-             <ScrollView Orientation="Both" HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand">
+  Graphics g;
+        Pen pen;
+        Font font;
+        Brush brush;
+
+        int count = 8;
+        int rows = 2;
+
+        int width = 100;
+        int height = 100;
+        int span = 20;
+
+        //Dictionary<int, int> xy = new Dictionary<int, int>();
+        private void button1_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                //g = this.CreateGraphics();
+                pen = new Pen(Color.Black, 3);
+                font = new Font("標楷體", 16);
+                brush = new SolidBrush(Color.Black);
+
+
+                int totalwidth = (count / rows) * width + (count / rows + 1) * span;
+
+                int totalheigh = (rows) * 100 + (rows + 1) * span;
+                pictureBox1.Width = totalwidth;
+                pictureBox1.Height = totalheigh;
+                Bitmap bmp = new Bitmap(totalwidth, totalheigh);
+
+                //Graphics g = Graphics.FromImage(bm);
+               
+
+
+                for (int i = 0; i < rows; i++)
+                {
+                    for (int j = 0; j < count / rows; j++)
+                    {
+                        var xy = new xy();
+                        xy.x = span * (j + 1) + (j > 0 ? width * j : 0);
+                        xy.y = span * (i + 1) + (i > 0 ? height * i : 0);
+                        lsxy.Add(xy);
+                        //xy[span * (i + 1) + (i > 0 ? height * i : 0)] = span * (j + 1) + (j > 0 ? width * j : 0);
+                    }
+
+                }
+
+               
+
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.White);
+                    lsxy.ForEach(v =>
+                    {
+                        g.DrawRectangle(pen, v.x, v.y, width, height);
+                    }); bmp.Save(@"c:\test\inx\test2.png", ImageFormat.Png);
+                    //using (MemoryStream memoryStream = new MemoryStream())
+                    //{
+                    //    memoryStream.Seek(0, SeekOrigin.Begin);
+                    //    memoryStream.Position = 0;
+                    //    using (var png = Image.FromStream(memoryStream,true))
+                    //    {
+                    //        //png.Save(@"c:\test\inx\test2.jpeg");
+                    //    }
+                    //    //Save the Watermarked image to the MemoryStream.
+                    //    //bmp.Save(memoryStream, ImageFormat.Png);
+                    //    //memoryStream.Position = 0;
+
+
+                    //}
+                    bmp.Dispose();
+                    g.Dispose();
+                    GC.Collect();
+                }
+ 
+ <ScrollView Orientation="Both" HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand">
 
  
  <dg:DataGridColumn Title="Win" PropertyName="Win" Width="0.7*">

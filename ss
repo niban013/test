@@ -1,3 +1,226 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace WinFormsApp1
+{
+    public class xy
+    {
+        public float x;
+        public float y;
+    }
+    public partial class Form1 : Form
+    {
+        private delegate void MyInvoke(string str);
+
+        List<xy> lsxy = new List<xy>();
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            Thread thread = new Thread(new ThreadStart(DoSomething));
+            thread.Start();
+        }
+
+        private void DoSomething()
+        {
+            this.Invoke(new Action(() => this.textBox1.Text = "Str"));
+            //MyInvoke invoke = new MyInvoke(Update);
+            //this.BeginInvoke(invoke, new Object[] { "test-2" });
+        }
+
+        private void Update(string str)
+        {
+            textBox1.Text = str;
+        }
+        Graphics g;
+        Pen pen;
+        Font font;
+        Brush brush;
+
+        int count = 72;
+        int rows = 12;
+
+        int width = 76;
+        int height = 38;
+        int span = 8;
+        int hspan =5;
+        Bitmap bmp;
+        private void CreateBitmap()
+        {
+            int totalwidth = (count / rows) * width + (count / rows + 1) * span + span; 
+            int totalheigh = rows * height + (rows + 1) * hspan - 1; 
+            bmp = new Bitmap(totalwidth, totalheigh);
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < count / rows; j++)
+                {
+                    var xy = new xy();
+                    xy.x = span * (j + 1) + (j > 0 ? width * j : 0) - (span / 2) - 1 + ((j > 2) ? Convert.ToInt32(span) * 2 : 0);// +((j==((count / rows)-1))? span : 0);
+
+                    xy.y = hspan * (i + 1) + (i > 0 ? height * i : 0) + (float)0.5;
+                    lsxy.Add(xy); 
+                } 
+            }
+        }
+
+        private int GetIndex(string side, int row, int col)
+        {
+            return side == "L" ? (count / rows) * (row - 1) + col - 1 : (count / rows) * (row - 1) + ((count / rows / 2)) + col - 1;       
+        }
+        Font drawFont = new Font("Arial", 5);
+        SolidBrush drawBrush = new SolidBrush(Color.Black);
+        StringFormat drawFormat = new StringFormat(); 
+        private void draw()
+        {
+            drawFormat.FormatFlags = StringFormatFlags.DirectionRightToLeft;
+            drawFormat.Alignment = StringAlignment.Center;
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                String drawString = "Sample Text";
+           
+                g.Clear(Color.White);
+
+                for (int i = 0; i < lsxy.Count; i++)
+                {
+                    if (i == 25)
+                        continue;
+
+                    g.DrawRectangle(pen, lsxy[i].x, lsxy[i].y, width, height);
+
+                    // Draw string to screen.
+                    g.DrawString(drawString, drawFont, drawBrush, lsxy[i].x + 36, lsxy[i].y + 5, drawFormat);
+
+                    g.DrawString(drawString, drawFont, drawBrush, lsxy[i].x + 36, lsxy[i].y + 15, drawFormat);
+
+                    g.DrawString(drawString, drawFont, drawBrush, lsxy[i].x + 36, lsxy[i].y + 25, drawFormat);
+                }
+
+                bmp.Save(@"c:\test\inx\test2.png", ImageFormat.Png); 
+                bmp.Dispose();
+                g.Dispose();
+                GC.Collect();
+            }
+        }
+
+
+
+        //Dictionary<int, int> xy = new Dictionary<int, int>();
+        private void button1_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                //g = this.CreateGraphics();
+                pen = new Pen(Color.Black, (float)1.5);
+                font = new Font("標楷體", 16);
+                brush = new SolidBrush(Color.Black);
+
+
+                int totalwidth = (count / rows) * width + (count / rows + 1) * span+ span;
+
+                int totalheigh = (rows) * height + (rows + 1) * hspan-1;
+                pictureBox1.Width = totalwidth;
+                pictureBox1.Height = totalheigh;
+                Bitmap bmp = new Bitmap(totalwidth, totalheigh);
+
+                //Graphics g = Graphics.FromImage(bm);
+               
+
+
+               
+
+               
+
+                using (Graphics g = Graphics.FromImage(bmp))
+                { 
+                    String drawString = "Sample Text"; 
+                    Font drawFont = new Font("Arial", 5);
+                    SolidBrush drawBrush = new SolidBrush(Color.Black);  
+                    StringFormat drawFormat = new StringFormat();
+                    drawFormat.FormatFlags = StringFormatFlags.DirectionRightToLeft;
+                    drawFormat.Alignment = StringAlignment.Center;
+                    g.Clear(Color.White);
+
+                    for (int i = 0; i < lsxy.Count; i++)
+                    {
+                        if (i == 25)
+                            continue;
+
+                        g.DrawRectangle(pen, lsxy[i].x, lsxy[i].y, width, height);
+
+                        // Draw string to screen.
+                        g.DrawString(drawString, drawFont, drawBrush, lsxy[i].x + 36, lsxy[i].y + 5, drawFormat);
+
+                        g.DrawString(drawString, drawFont, drawBrush, lsxy[i].x + 36, lsxy[i].y + 15, drawFormat);
+
+                        g.DrawString(drawString, drawFont, drawBrush, lsxy[i].x + 36, lsxy[i].y + 25, drawFormat);
+                    }
+                  
+                    bmp.Save(@"c:\test\inx\test2.png", ImageFormat.Png);
+                    //using (MemoryStream memoryStream = new MemoryStream())
+                    //{
+                    //    memoryStream.Seek(0, SeekOrigin.Begin);
+                    //    memoryStream.Position = 0;
+                    //    using (var png = Image.FromStream(memoryStream,true))
+                    //    {
+                    //        //png.Save(@"c:\test\inx\test2.jpeg");
+                    //    }
+                    //    //Save the Watermarked image to the MemoryStream.
+                    //    //bmp.Save(memoryStream, ImageFormat.Png);
+                    //    //memoryStream.Position = 0;
+
+
+                    //}
+                    bmp.Dispose();
+                    g.Dispose();
+                    GC.Collect();
+                }
+
+
+
+
+
+
+
+
+
+
+                //g.DrawRectangle(pen, 0, 0, 100, 100);
+                //  g.DrawString("Legend", new Font("Tahoma", 12, FontStyle.Bold), Brushes.Black, new PointF(50, 50));
+
+                //pictureBox1.Image = bm;
+
+                //pictureBox1.Image.Save(@"c:\test\inx\test2.jpg", ImageFormat.Jpeg);
+
+                //var image = new Bitmap(width, height);
+                //using (MemoryStream ms = new MemoryStream())
+                //{
+                //    //error will throw from here
+                //    bm.Save(ms, ImageFormat.Jpeg);
+                //}
+                //bm.Save(@"c:\test\inx", ImageFormat.Png);
+                //回收资源
+              
+            }
+            catch (Exception ex)
+            { 
+            
+            }
+        }
+    }
+}
 
 
 @{

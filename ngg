@@ -1,0 +1,153 @@
+<button class="btn btn-sm btn-success" (click)="onLaunch1()"> Launch</button>
+<div class="main-container">
+  <header class="header-2">
+    <div class="branding">
+      <a class="nav-link">
+        <clr-icon shape="home" size="24"></clr-icon>
+        <span class="title">Project Clarity</span>
+      </a>
+    </div>
+    <div class="header-nav">
+      <a class="active nav-link nav-text">Home</a>
+    </div>
+  </header>
+  <div class="content-container">
+    <div class="content-area">
+      <clr-datagrid [(clrDgSelected)]="selected">
+        <clr-dg-column>ID2</clr-dg-column>
+        <clr-dg-column>Name</clr-dg-column>
+        
+        <cdk-virtual-scroll-viewport  style="height: 350px" itemSize="16">
+        <clr-dg-row *cdkVirtualFor="let user of users" [clrDgItem]="user">
+        <clr-dg-cell>{{ user.id }}</clr-dg-cell>
+        <clr-dg-cell>{{ user.name }}</clr-dg-cell>
+        </clr-dg-row>
+    </cdk-virtual-scroll-viewport>
+
+    <!--  <cdk-virtual-scroll-viewport class="list-container lg" customVirtualScrollStrategy [itemSize]="16">
+        <clr-dg-row *clrDgItems="let user of users" [clrDgItem]="user">
+        <clr-dg-cell>{{ user.id }}</clr-dg-cell>
+        <clr-dg-cell>{{ user.name }}</clr-dg-cell>
+      </clr-dg-row>
+       
+      </cdk-virtual-scroll-viewport>-->   
+      <clr-dg-placeholder>We couldn't load any launches</clr-dg-placeholder>
+      <clr-dg-footer>
+      {{pagination.firstItem + 1}} - {{pagination.lastItem + 1}}
+      of {{pagination.totalItems}} launches
+      <clr-dg-pagination #pagination [clrDgPageSize]="10" [clrDgTotalItems]="response?.total"></clr-dg-pagination>
+    </clr-dg-footer>
+
+       
+       
+      </clr-datagrid>
+    </div>
+  </div>
+</div>
+
+
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { FormsModule } from '@angular/forms';
+import { ClrCheckboxDisplayDirective } from './clr-checkbox-display.directive';
+
+import { ClarityModule } from '@clr/angular';
+
+import { AppComponent } from './app.component';
+import { ScrollingModule } from '@angular/cdk-experimental/scrolling';
+import { ScrollDispatchModule } from '@angular/cdk/scrolling';
+
+@NgModule({
+  imports: [BrowserModule, BrowserAnimationsModule, ClarityModule, FormsModule, ScrollDispatchModule, ScrollingModule],
+  exports: [ClrCheckboxDisplayDirective],
+  declarations: [AppComponent, ClrCheckboxDisplayDirective],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+
+
+.datagrid-placeholder-container {
+  display: none;
+}
+
+
+import { CdkVirtualScrollViewport } from '@angular/cdk-experimental/scrolling';
+import { Component, ViewChild } from '@angular/core';
+import { Router } from '@angular/router';
+@Component({
+  selector: 'my-app',
+  styleUrls: ['app.component.css'],
+  templateUrl: 'app.component.html'
+})
+export class AppComponent {
+  @ViewChild(CdkVirtualScrollViewport)
+  cdkVirtualScrollViewport: CdkVirtualScrollViewport;
+  selected: any = [];
+  users = [
+    {
+      "id": 0,
+      "name": "Newton"
+    },
+    {
+      "id": 1,
+      "name": "Edison"
+    }, {
+      "id": 2,
+      "name": "Newton"
+    },
+    {
+      "id": 3,
+      "name": "Edison"
+    },{
+      "id": 4,
+      "name": "Newton"
+    },
+    {
+      "id": 5,
+      "name": "Edison"
+    }, {
+      "id": 6,
+      "name": "Newton"
+    },
+    {
+      "id": 7,
+      "name": "Edison"
+    }, {
+      "id": 8,
+      "name": "Newton"
+    },
+    {
+      "id": 9,
+      "name": "Edison"
+    }, {
+      "id":10,
+      "name": "Newton"
+    },
+    {
+      "id":11,
+      "name": "Edison"
+    }, {
+      "id":12,
+      "name": "Newton"
+    },
+    {
+      "id": 13,
+      "name": "Edison"
+    } ,{
+      "id": 14,
+      "name": "Newton"
+    },
+    {
+      "id": 15,
+      "name": "Edison"
+    }
+  ]
+  scrollTo() { 
+    this.cdkVirtualScrollViewport.scrollToIndex(10);
+  }
+  onLaunch1() {
+    this.cdkVirtualScrollViewport.scrollToIndex(11, 'auto');
+   // console.log( this.cdkVirtualScrollViewport.)
+  }
+}

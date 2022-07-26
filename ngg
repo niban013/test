@@ -1,3 +1,14 @@
+  onLaunch12() {
+    const id = document.getElementById('1112234234');
+    if (id) {
+      id.scrollIntoView();
+    }
+    console.log('p')
+     document.getElementById('content1').scrollTo(50,50)
+  }
+  
+   <clr-dg-row [attr.id] ="element.key" [clrDgItem]="element" *clrDgItems="let element of elements"  >
+
 <button class="btn btn-sm btn-success" (click)="onLaunch1()"> Launch</button>
 <div class="main-container">
   <header class="header-2">

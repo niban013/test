@@ -1,4 +1,6 @@
-  Graphics g;
+ 
+ https://github.com/videojs/video.js/issues/5724
+ Graphics g;
         Pen pen;
         Font font;
         Brush brush;

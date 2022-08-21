@@ -1,3 +1,103 @@
+
+https://stackblitz.com/edit/angular-multi-language-with-translate-pipe?file=src%2Fapp%2Ftranslate.pipe.ts
+https://stackblitz.com/edit/stackoverflow-53029885?file=src%2Fapp%2Fmissing-translation.ts
+import { DOCUMENT } from '@angular/common';
+import { Inject, Injectable, Optional } from '@angular/core';
+import { delay, Observable, of } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class DocumentService {
+  constructor(@Optional() @Inject(DOCUMENT) private document: Document) {}
+
+  getBody() {
+    return this.document.body;
+  }
+
+  getPeople(): Observable<string> {
+    return of('kkkkk').pipe(delay(5000));
+}
+
+  getCookie() {
+    let k=''
+    this.delay(5000).then(() =>  {
+      k= 'oo';
+    console.log('ran after 1 second1 passed')
+  });
+    
+  return k
+  }
+
+  delay(time) {
+    return new Promise(resolve => setTimeout(resolve, time));
+  }
+}
+
+import { APP_INITIALIZER, NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+
+import { AppComponent } from './app.component';
+import { HelloComponent } from './hello.component';
+import { DocumentService } from './document.service';
+import { DOCUMENT } from '@angular/common';
+
+@NgModule({
+  imports: [BrowserModule, FormsModule],
+  declarations: [AppComponent, HelloComponent],
+  bootstrap: [AppComponent],
+  providers: [
+    {
+      provide: APP_INITIALIZER,
+      deps: [DocumentService],
+      useFactory: (document: DocumentService) => (): any => {
+
+        document.getPeople().subscribe(data => console.log(data));
+        console.log(document.getPeople());
+      },
+      multi: true,
+    },
+  ],
+})
+export class AppModule {}
+
+
+import { NgModule } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms';
+
+import { LoggerService } from './logger.service';
+
+import { AppComponent } from './app.component';
+import { HelloComponent } from './hello.component';
+
+// service Factory
+const loggerFactory = () => {
+  const isProd = false; // you can use Angular `environment` variables
+  console.log('oo')
+  var getJSON = localStorage.getItem('lastname');
+    if (getJSON){
+      console.log(getJSON)
+        return new LoggerService(isProd);
+
+    }
+  return new LoggerService(isProd);
+}
+@NgModule({
+  imports:      [ BrowserModule, FormsModule ],
+  declarations: [ AppComponent, HelloComponent ],
+  providers: [
+    {
+      provide: LoggerService,
+      useFactory: loggerFactory
+    }
+  ],
+  bootstrap:    [ AppComponent ]
+})
+export class AppModule { }
+
+
+https://stackblitz.com/edit/angular-factory-provider-demo?file=src%2Fapp%2Fapp.module.ts,src%2Fapp%2Flogger.service.ts,src%2Findex.html,src%2Fapp%2Fapp.component.ts,src%2Fapp%2Fhello.component.ts
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;

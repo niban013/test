@@ -1,4 +1,6 @@
-
+<element>{{ 'KEY' | translate }}</element>
+<element title="{{ 'KEY' | translate }}"></element>
+<element [title]="property | translate"></element>
 https://stackblitz.com/edit/angular-multi-language-with-translate-pipe?file=src%2Fapp%2Ftranslate.pipe.ts
 https://stackblitz.com/edit/stackoverflow-53029885?file=src%2Fapp%2Fmissing-translation.ts
 import { DOCUMENT } from '@angular/common';

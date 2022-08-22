@@ -1,3 +1,6 @@
+
+https://www.9lessons.info/2020/10/angular-internationalization-multi-langu.html
+https://testing-angular.com/testing-pipes/
 <element>{{ 'KEY' | translate }}</element>
 <element title="{{ 'KEY' | translate }}"></element>
 <element [title]="property | translate"></element>

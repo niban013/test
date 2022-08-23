@@ -13,6 +13,13 @@ https://www.npmjs.com/package/pretty-ngx-translate
       <p translate="{{ 'PASSED_AS_INTERPOLATION' }}"></p>
     </div>
 
+]
+
+https://github.com/ngx-translate/core/issues/570
+
+
+
+
 
 https://www.9lessons.info/2020/10/angular-internationalization-multi-langu.html
 https://testing-angular.com/testing-pipes/

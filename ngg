@@ -1,4 +1,19 @@
 
+https://stackoverflow.com/questions/64244497/conditional-data-binding-in-angular-with-piped-translate-variables
+https://stackoverflow.com/questions/57733188/how-to-use-i18n-with-component-inputs-that-are-objects-in-angular
+https://www.npmjs.com/package/pretty-ngx-translate
+   <div ng-controller="Ctrl">
+      <p>{{ 'HEADLINE' | translate }}</p>
+      <img src="mylogo.png" translate-attr="{ alt: 'LOGO' }"></img>
+      <p>{{ 'PARAGRAPH' | translate }}</p>
+    
+      <p translate>PASSED_AS_TEXT</p>
+      <p translate="PASSED_AS_ATTRIBUTE"></p>
+      <p translate>{{ 'PASSED_AS_INTERPOLATION' }}</p>
+      <p translate="{{ 'PASSED_AS_INTERPOLATION' }}"></p>
+    </div>
+
+
 https://www.9lessons.info/2020/10/angular-internationalization-multi-langu.html
 https://testing-angular.com/testing-pipes/
 <element>{{ 'KEY' | translate }}</element>

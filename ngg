@@ -1,4 +1,90 @@
+import { hostViewClassName } from '@angular/compiler/public_api';
+import { Pipe, PipeTransform } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
+import { map, first } from 'rxjs/operators';
 
+@Pipe({
+name: 'ParamsTranslate'
+})
+export class ParamsTranslatePipe implements PipeTransform {
+constructor(private _translate: TranslateService) {}
+// private translation: string | null = null;
+// private getTranslation(key: string): any {
+//        this._translate
+//       .get(key);
+//   }
+  async getRolestypes(obj:string): Promise<any> {
+    return  this._translate.get(obj).toPromise();
+ }
+  getRolestypes1(obj:string,newObject:any): Promise<any> {
+    return this._translate.get(obj, newObject).//'{param1: "Value 1", param2: "Value 2"}').
+    toPromise()
+ }
+  
+ transform(obj: string, ...args: any[]) : string {
+    const newObject = Object.assign({}, ...args); 
+    
+    Object.keys(newObject).forEach(
+        key =>
+        newObject[key].length
+                ? this._translate
+                      .get(newObject[key])
+                      .pipe(first(), map(value => value))
+                      .subscribe(value => (newObject[key] = value))
+                : undefined
+    );
+    this._translate.get(obj, newObject).pipe(map(res => { // changed the subscribe
+        // let userData; // scoping it inside the return
+        // userData = res;
+        console.log(res);
+        // if (true) {
+          return 'userData';
+        // } else {
+          
+        //   return 'prop';
+        // }
+      }));
+    //  let ff  = await this.getRolestypes(obj)
+    //  console.log(ff)  
+    //  console.log(newObject)
+    //  let ff  = this.getRolestypes1(obj,newObject)
+    //  ff.then((value) => {
+    //     console.log(value); // 👉️ "Hello world"
+      
+    //     return value;
+    //   });
+     //return '88'
+    // let gg ='{param1: "Value 1", param2: "Value 2"}'
+    //const result = await this._translate.get(obj);
+    //let f =  await this.getRolestypes1(obj,newObject)
+    //console.log(f )
+    // return new Promise(resolve => {
+    //     resolve(this.getRolestypes1(obj,newObject));
+    // });
+  //console.log(result)
+ //   return f// this.getRolestypes1(obj,newObject)
+    //this._translate.instant(obj, newObject)
+
+    // this.getTranslation(obj);
+
+    // console.log(this.translation)
+    // return this._translate.get(this.translation, newObject)
+  
+    // const result=''
+    // this._translate.get(obj, newObject).subscribe((res: string) => {
+    //     console.log(res);
+    //     //=> 'hello world'
+    // })
+    // this._translate
+    // .get(obj)
+    // .subscribe(value => {
+        
+    //      this.result =  this._translate.instant(quvalue,this.newObjectery);
+    // })
+ //   return ff;
+}
+}
 https://stackoverflow.com/questions/64244497/conditional-data-binding-in-angular-with-piped-translate-variables
 https://stackoverflow.com/questions/57733188/how-to-use-i18n-with-component-inputs-that-are-objects-in-angular
 https://www.npmjs.com/package/pretty-ngx-translate

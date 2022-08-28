@@ -1,3 +1,91 @@
+<div>
+  <span>{{title}}</span>
+  <app-child *ngIf="show"></app-child>
+
+  <div [ngStyle]="{cursor: 'pointer'}">
+    <button mat-button [matMenuTriggerFor]="theMenu" 
+    [ngStyle]="{'pointer-events': 1> 2 ? 'none' : 'inherit'}"
+  
+    > Click for menu </button>
+  </div>
+   
+  <mat-menu #theMenu="matMenu">
+    <button mat-menu-item>Item 1</button>
+    <button mat-menu-item>Item 2</button>
+    <button mat-menu-item>Item 3</button>
+    <other-buttons-component></other-buttons-component>
+  </mat-menu>
+</div>
+
+ // <div satyaColor inputColor="VALUE1">VALUE1</div>
+      // <div satyaColor>VALUE1</div>
+
+   <div [satyaColor]="'VALUE1'"></div> 
+
+import { AsyncPipe } from "@angular/common";
+import { ChangeDetectorRef, Injector, OnDestroy, Pipe, PipeTransform } from "@angular/core";
+import { TranslateService } from "@ngx-translate/core";
+import { Observable } from "rxjs";
+import { map, first } from 'rxjs/operators';
+
+@Pipe({ name: 'apiText', pure: false })
+ export class ApiTextPipe implements PipeTransform, OnDestroy {
+   private asyncPipe: AsyncPipe;
+   constructor(private _translate: TranslateService, private injector: Injector) {
+     this.asyncPipe = new AsyncPipe(injector.get(ChangeDetectorRef));
+   }
+   ngOnDestroy() {
+      this.asyncPipe.ngOnDestroy();
+   }
+   getRolestypes(obj:string,newObject?:any): Observable<any> {
+    return  this._translate.get(obj, newObject);
+  }
+  transform(obj: string, ...args: any[]) :any  {
+    const newObject = Object.assign({}, ...args); 
+   console.log(Object.keys(newObject))
+    Object.keys(newObject).forEach(
+        key =>{
+        (newObject[key] = value
+       
+        newObject[key].length
+                ? this._translate
+                      .get(newObject[key])
+                      .pipe(first(), map(value => value))
+                      .subscribe(value =>{
+
+                        (newObject[key] = value)
+                        })
+                : undefined
+        }
+    );
+     return this.asyncPipe.transform(this.getRolestypes(obj,newObject));
+   }
+ }
+ 
+ import { Directive, ElementRef, Input, AfterViewInit } from '@angular/core';  
+import { TranslateService } from '@ngx-translate/core';
+import { Console } from 'console';
+  
+@Directive({   
+     selector: '[satyaColor]'   
+})  
+export class ColorInputDirective implements AfterViewInit{  
+    @Input() inputColor: string;  
+    @Input('satyaColor') tsize: string;  
+    constructor(private elRef: ElementRef,private _translate: TranslateService) {   
+    }  
+    ngAfterViewInit(): void {  
+    //this.elRef.nativeElement.style.color = this.inputColor;  <div [satyaColor] ="VALUE1"></div>   <div [satyaColor]="VALUE1"></div> 
+    //console.log(this.tsize)
+    this._translate.get(this.tsize)
+     .subscribe((translations) => {
+      this.elRef.nativeElement.innerText= translations;
+});
+  
+    }  
+}
+
+
 import { hostViewClassName } from '@angular/compiler/public_api';
 import { Pipe, PipeTransform } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';

@@ -1,3 +1,5 @@
+
+https://hackmd.io/@computer-vision-ocr-cc-forum/BkTaqn7zD
 <div>
   <span>{{title}}</span>
   <app-child *ngIf="show"></app-child>

@@ -1,0 +1,41 @@
+{
+    "namep": "flare","size": 3938,
+    "children": [
+        {
+            "namep": "analytics","size": 3938,
+            "children": [
+                {
+                    "namep": "cluster","size": 3938,
+                    "children": [
+                        {"namep": "AgglomerativeCluster", "size": 3938}
+                    ]
+                },
+                {
+                    "namep": "graph","size": 3938,
+                    "children": [
+                        {"namep": "BetweennessCentrality", "size": 3534}
+                    ]
+                },
+                {
+                    "namep": "optimization","size": 3938,
+                    "children": [
+                    ]
+                }
+            ]
+        },
+        {
+            "namep": "animate","size": 3938,
+            "children": [
+                {"namep": "Easing", "size": 17010},
+                {"namep": "FunctionSequence", "size": 5842},
+                {
+                    "namep": "interpolate","size": 3938,
+                    "children": [
+                        {"namep": "ArrayInterpolator", "size": 1983}
+                    ]
+                }
+            ]
+        }
+
+    ]
+}

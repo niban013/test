@@ -1,4 +1,417 @@
+ <meta charset="utf-8">
+
+<style>
+	#chart {
+	  max-width: 100%;
+	  overflow:auto;
+	}
+	text {
+	  pointer-events: none;
+	}
+	.grandparent text {
+	  font-weight: bold;
+	}
+	rect {
+	  stroke: #fff;
+	  stroke-width: 1px;
+	}
+	rect.parent,
+	.grandparent rect {
+	  stroke-width: 3px;
+	}
+	.grandparent:hover rect {
+	  fill: grey;
+	}
+	.children rect.parent,
+	.grandparent rect {
+	  cursor: pointer;
+	}
+	.children rect.child {
+	  opacity: 0;
+	}
+	.children rect.parent {
+	}
+	.children:hover rect.child {
+	  opacity: 1;
+	  stroke-width: 1px;
+	}
+	.children:hover rect.parent {
+	  opacity: 0;
+	}
+	.legend {
+	  margin-bottom:8px !important;
+	}
+	.legend rect {
+	  stroke-width: 0px;
+	}
+	.legend text {
+	  text-anchor: middle;
+	  pointer-events: auto;
+	  font-size: 13px;
+	  font-family: sans-serif;
+	  fill: black;
+	}
+	.form-group {
+	    text-align:left;
+	}
+	.textdiv {
+	    font-family: "Open Sans",Helvetica,Arial,sans-serif;
+	    font-size: 14px;
+	    padding: 7px;
+	    cursor: pointer;
+	    overflow:none;
+	}
+	.textdiv .title {
+	    font-size: 102%;
+	    font-weight: bold;
+	    margin-top: 8px;
+	    font-size:11px !important;
+	}
+	.textdiv p{
+	    line-height: 13px;
+	    margin:0 0 4px !important;
+	    padding:0px;
+	    font-size:10px !important;
+	}
+    div.protooltip {	
+        position: absolute;			
+        text-align: center;			
+        min-width: 60px;					
+        max-width: 240px;					
+        min-height: 26px;					
+        padding: 8px;				
+        font-size: 12px;		
+        background: rgb(161,214,227);	
+        border: 1px solid rgb(161,214,227);	
+        color: #333;	
+        border-radius: 4px;			
+        pointer-events: none;
+        z-index: 10000;			
+    }
+    div.protooltip.tmtip{
+        background: #FCFFD6;	
+        border: 1px solid #BA9790;	
+        color: #111;	
+        
+    }
+</style>
+
+<p id="chart"></p>
+
+<script src="http://d3js.org/d3.v4.min.js"></script>
+<script>
+    /**
+     * Interactive, zoomable treemap, using D3 v4
+     *
+     * A port to D3 v4 of Jacques Jahnichen's Block, using the same budget data
+     * see: http://bl.ocks.org/JacquesJahnichen/42afd0cde7cbf72ecb81
+     *
+     * Author: Guglielmo Celata
+     * Date: sept 1st 2017
+     **/
+    var el_id = 'chart';
+    var obj = document.getElementById(el_id);
+    var divWidth = obj.offsetWidth;
+    var margin = {top: 30, right: 0, bottom: 20, left: 0},
+        width = 600,//divWidth -25,
+        height = 600 - margin.top - margin.bottom,
+        formatNumber = d3.format(","),
+        transitioning;
+    // sets x and y scale to determine size of visible boxes
+    var x = d3.scaleLinear()
+        .domain([0, width])
+        .range([0, width]);
+    var y = d3.scaleLinear()
+        .domain([0, height])
+        .range([0, height]);
+    var treemap = d3.treemap()
+            .size([width, height])
+            .paddingInner(0)
+            .round(false);
+    var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    var svg = d3.select('#'+el_id).append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.bottom + margin.top)
+        .style("margin-left", -margin.left + "px")
+        .style("margin.right", -margin.right + "px")
+        .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+            .style("shape-rendering", "crispEdges");
+    var grandparent = svg.append("g")
+            .attr("class", "grandparent");
+        grandparent.append("rect")
+            .attr("y", -margin.top)
+            .attr("width", width)
+            .attr("height", margin.top)
+            .attr("fill", '#bbbbbb');
+        grandparent.append("text")
+            .attr("x", 6)
+            .attr("y", 6 - margin.top)
+            .attr("dy", ".75em");
+    d3.json("http://localhost:4200/assets/flare3.json", function(data) {
+        var tmTTTimeout;
+        function HideTooltip(){
+            clearTimeout(tmTTTimeout);
+            d3.select(".protooltip")
+                .classed("z-depth-1", false)
+                .classed("tmtip", false)
+                .transition()
+                .duration(500)
+                .style("opacity", 0);   
+        }  
+        function ShowInnerTooltip(event,d){
+           
+        }
+        function ShowTMTooltip(d, IsContainer){
+            var div = d3.select(".protooltip");
+            if (div.empty()) {
+                div = d3.select("body").append("div")
+                .attr("class", "protooltip");
+            }
+            div.classed("z-depth-1", true)
+                .classed("tmtip", true)
+                .style("opacity", 0);
+            
+            div.transition()
+                .duration(400)
+                .style("opacity", .96);
+
+            // _msg=''
+            // _x = d3.event.pageX
+            // _y = d3.event.pageY
+            // var item = d.children.filter(c=>c.x0>_x && c.x1>c.x0 && c.y0>_y && c.y1>c.y0)
+            // if(item!=null){
+            //     _msg= item.fileName + ': ' +d.data.size
+            // }
+
+            div.html(d.data.fileName + ': ' +d.data.size)
+                .style("left", (d3.event.pageX + 10) + "px")
+                .style("top", (d3.event.pageY + 20) + "px");
+            
+            tmTTTimeout = setTimeout(HideTooltip, 5000);    
+        }
+        var root = d3.hierarchy(data);
+        console.log(root);
+        treemap(root
+            .sum(function (d) {
+                if(d.fileType =='F'){
+                    return d.size;
+                }
+                
+            })
+            .sort(function (a, b) {
+                return b.height - a.height || b.value - a.value
+            })
+        );
+        display(root);
+        function display(d) {
+            // write text into grandparent
+            // and activate click's handler
+            grandparent
+                .datum(d.parent)
+                .on("click", transition)
+                .select("text")
+                .text(name(d)) ;
+            // grandparent color
+            grandparent
+                .datum(d.parent)
+                .select("rect")
+                .attr("fill", function () {
+                    return '#bbbbbb';
+                });
+            var g1 = svg.insert("g", ".grandparent")
+                .datum(d)
+                .attr("class", "depth");
+            var g = g1.selectAll("g")
+                .data(d.children)
+                .enter().
+                append("g");
+
+           
+
+            // add class and click handler to all g's with children
+            g.filter(function (d) {
+                return d.children;
+            }).classed("children", true)
+            .on("mouseover", function (d) {
+                ShowTMTooltip(d, true);
+            }).on("mouseout", function (d) {
+                HideTooltip();
+            }).on("click", transition);
+
+
+            g.selectAll(".child")
+                .data(function (d) {
+                    return d.children || [d];
+                })
+                .enter()
+                .append("rect")
+                .attr("class", "child")
+                .text(function(d) { return d.data.size; })
+  
+   
+                .call(rect)  ;
+
+         
  
+
+
+            // add title to parents
+            g.append("rect")
+                .attr("class", "parent")
+                .call(rect)
+                .append("title")
+                .text(function (d){
+                    return d.data.fileName;
+                });
+            /* Adding a foreign object instead of a text object, allows for text wrapping */
+            g.append("foreignObject")
+                .call(rect)
+                .attr("class", "foreignobj")
+                .append("xhtml:div")
+                .attr("dy", ".75em")
+                .html(function (d) {
+                    return '' +
+                        '<p class="title"> ' + d.data.fileName + '</p>' +
+                        '<p>' + formatNumber(d.value) + '</p>'
+                    ;
+                })
+                .attr("class", "textdiv"); //textdiv class allows us to style the text easily with CSS
+            function transition(d) {
+                if (transitioning || !d) return;
+                transitioning = true;
+                var g2 = display(d),
+                    t1 = g1.transition().duration(650),
+                    t2 = g2.transition().duration(650);
+                // Update the domain only after entering new elements.
+                x.domain([d.x0, d.x1]);
+                y.domain([d.y0, d.y1]);
+                // Enable anti-aliasing during the transition.
+                svg.style("shape-rendering", null);
+                // Draw child nodes on top of parent nodes.
+                svg.selectAll(".depth").sort(function (a, b) {
+                    return a.depth - b.depth;
+                });
+                // Fade-in entering text.
+                g2.selectAll("text").style("fill-opacity", 0);
+                g2.selectAll("foreignObject div").style("display", "none");
+                /*added*/
+                // Transition to the new view.
+                t1.selectAll("text").call(text).style("fill-opacity", 0);
+                t2.selectAll("text").call(text).style("fill-opacity", 1); 
+                t1.selectAll("rect").call(rect);
+                t2.selectAll("rect").call(rect);
+                /* Foreign object */
+                t1.selectAll(".textdiv").style("display", "none");
+                /* added */
+                t1.selectAll(".foreignobj").call(foreign);
+                /* added */
+                t2.selectAll(".textdiv").style("display", "block");
+                /* added */
+                t2.selectAll(".foreignobj").call(foreign);
+                /* added */
+                // Remove the old node when the transition is finished.
+                t1.on("end.remove", function(){
+                    this.remove();
+                    transitioning = false;
+                });
+            }
+            return g;
+        }
+        function text2(text) {
+            text.attr("x", function(d) {
+                return x(d.x1) - this.getComputedTextLength() - 6;
+            })
+            .attr("y", function(d) { return y(d.y1) - 6; })
+            .style("opacity", function(d) {
+                var w = x(d.x1) - x(d.x0);
+                console.log("text2 opacity setting textlength " + this.getComputedTextLength() + " d size " + w);
+                return this.getComputedTextLength() < w - 6 ? 1 : 0;
+            });
+        }
+        function text(text) {
+            text.attr("x", function (d) {
+                return x(d.x) + 6;
+            })
+                .attr("y", function (d) {
+                    return y(d.y) + 6;
+                });
+        }
+        function rect(rect) {
+            rect
+                .attr("x", function (d) {
+                    return x(d.x0);
+                })
+                .attr("y", function (d) {
+                    return y(d.y0);
+                })
+                .attr("width", function (d) {
+                    return x(d.x1) - x(d.x0);
+                })
+                .attr("height", function (d) {
+                    return y(d.y1) - y(d.y0);
+                })
+                .attr("fill", function (d) {
+                    return color(d.data.fileID);//'#bbbbbb';
+                })  
+ ;
+        }
+        function foreign(foreign) { /* added */
+            foreign
+                .attr("x", function (d) {
+                    return x(d.x0);
+                })
+                .attr("y", function (d) {
+                    return y(d.y0);
+                })
+                .attr("width", function (d) {
+                    return x(d.x1) - x(d.x0);
+                })
+                .attr("height", function (d) {
+                    return y(d.y1) - y(d.y0);
+                });
+        }
+        function name(d) {
+            return breadcrumbs(d) +
+                (d.parent
+                ? " -  Click to zoom out"
+                : " - Click inside square to zoom in");
+        }
+        function breadcrumbs(d) {
+            var res = "";
+            var sep = " > ";
+            d.ancestors().reverse().forEach(function(i){
+                res += i.data.fileName + sep;
+            });
+            return res
+                .split(sep)
+                .filter(function(i){
+                    return i!== "";
+                })
+                .join(sep);
+        }
+
+        function idealTextColor(bgColor) {
+          var nThreshold = 105;
+          var components = getRGBComponents(bgColor);
+          var bgDelta = (components.R * 0.299) + (components.G * 0.587) + (components.B * 0.114);
+          return ((255 - bgDelta) < nThreshold) ? "#000000" : "#ffffff";
+        }
+        function getRGBComponents(color) {
+          var r = color.substring(1, 3);
+          var g = color.substring(3, 5);
+          var b = color.substring(5, 7);
+          return {
+              R: parseInt(r, 16),
+              G: parseInt(g, 16),
+              B: parseInt(b, 16)
+        };
+      
+    }
+
+    });
+</script>
  
  <!DOCTYPE html>
 <html>

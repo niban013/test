@@ -1,4 +1,4 @@
-
+https://cloudaffaire.com/azure/update-2-asp-net-core-web-api-upload-and-download-file-stream-exception/
 ASPxComboBox combo2 = ((ASPxComboBox)grid.FindEditRowCellTemplateControl(
                 grid.Columns["Category2ID"] as GridViewDataComboBoxColumn, "Cat2"));
 

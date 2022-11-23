@@ -1,3 +1,63 @@
+
+   HttpClient hc = new HttpClient();
+
+            string url = "http://localhost:19461/WeatherForecast/receive";
+            string path = @"C:\vm\unlocker-for-vmware-macos\backup\x64\vmware-vmx-debug.exe";
+            var postContent = new MultipartFormDataContent();
+            string boundary = string.Format("--{0}", DateTime.Now.Ticks.ToString("x"));
+            postContent.Headers.Add("ContentType", $"multipart/form-data, boundary={boundary}");
+
+            //if (files.Any())
+            //{
+            Stream stream = System.IO.File.Open(path, FileMode.Open);
+
+            //files为文件key, files[0].FileName 为文件名称
+            postContent.Add(new StreamContent(stream, (int)stream.Length), "files", "ElaneBoot.Schedule-master.7z");
+                //Region为请求文件接口需要的参数，根据调用接口参数而定
+                //postContent.Add(new StringContent(info.Region), "Region");
+
+            //}
+            var response = await hc.PostAsync(url, postContent);
+            if (response.IsSuccessStatusCode)
+            {
+                //var responseStr = await response.Content.ReadAsStringAsync();
+                //var responseObj = JsonConvert.DeserializeObject<WebApiResult>(responseStr);
+                //return responseObj;
+            }
+
+  var body = Request.Body;
+
+            var mediaType = MediaTypeHeaderValue.Parse(Request.ContentType);
+
+            var boundary = mediaType.Parameters
+                .SingleOrDefault(x =>
+                    string.Equals(x.Name, "boundary", StringComparison.OrdinalIgnoreCase));
+
+            // boundary を囲むダブル クォーテーションを除去する
+            var reader = new MultipartReader(boundary.Value.Trim('"'), body);
+
+             
+
+
+            MultipartSection section = await reader.ReadNextSectionAsync();
+
+            while (section != null)
+            {
+                bool hasContentDispositionHeader = ContentDispositionHeaderValue.TryParse(
+                section.ContentDisposition, out ContentDispositionHeaderValue contentDisposition);
+
+                if (hasContentDispositionHeader)
+                {
+                    using (var fileStream = System.IO.File.Create(@"c:\test\kk"))
+                    {
+
+                        section.Body.CopyToAsync(fileStream).Wait();
+
+                    }
+                }
+
+                section = await reader.ReadNextSectionAsync();
+            }
 https://cloudaffaire.com/azure/update-2-asp-net-core-web-api-upload-and-download-file-stream-exception/
 ASPxComboBox combo2 = ((ASPxComboBox)grid.FindEditRowCellTemplateControl(
                 grid.Columns["Category2ID"] as GridViewDataComboBoxColumn, "Cat2"));

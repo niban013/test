@@ -71,32 +71,24 @@ myChart.on('click', function (event) {
   if (event.data) {
   console.log(event.data.groupId)
    var subData=null;
+   var flag ;
    if(event.data.groupId!='Cats') {
       subData = drilldownData.find(function (data) {
       return data.dataGroupId === event.data.groupId;
     });
-     
+     flag=1
    }
    else{
         subData = drilldownData2.find(function (data) {
       return data.dataGroupId === event.data.groupId;  });
+          flag=2
    }
   
     if (!subData) {
       return;
     }
-   
-    var f = subData.data.map(function (item) {
-      let h = new Object();
-      h.groupId=item[0]
-        h.value=item[1]
-          return h;
-        })
-        
-        console.log(f) 
-    //result = drilldownData.map(({drilldownData.data[0]: groupId, drilldownData.data[1]: value}) => ({groupId, value}));
-    
-    myChart.setOption({
+    if(  flag==1){
+        option1 ={
       xAxis: {
         data: subData.data.map(function (item) {
           return item[0];
@@ -135,7 +127,56 @@ myChart.on('click', function (event) {
           }
         }
       ]
-    });
+    }
+    }
+    
+     if(  flag==2){
+        option2 ={
+      xAxis: {
+        data: subData.data.map(function (item) {
+          return item[0];
+        })
+      },
+      series: {
+        type: 'bar',
+        id: 'sales',
+        dataGroupId: subData.dataGroupId,
+        data:  subData.data.map(function (item) {
+      let h = new Object();
+      h.groupId=item[0]
+        h.value=item[1]
+          return h;
+        })
+      //  subData.data.map(function (item) {
+     //     return item[1];
+      //  })
+        ,
+        universalTransition: {
+          enabled: true,
+          divideShape: 'clone'
+        }
+      },
+      graphic: [
+        {
+          type: 'text',
+          left: 50,
+          top: 20,
+          style: {
+            text: 'Back',
+            fontSize: 18
+          },
+          onclick: function () {
+            myChart.setOption(option1);
+          }
+        }
+      ]
+    }
+    }
+    
+ if(  flag==1){
+    myChart.setOption(option1)}
+    if(  flag==2){
+    myChart.setOption(option2)}
   }
 });
    HttpClient hc = new HttpClient();

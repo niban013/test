@@ -1,4 +1,143 @@
+option = {
+  xAxis: {
+    data: ['Animals', 'Fruits', 'Cars']
+  },
+  yAxis: {},
+  dataGroupId: '',
+  animationDurationUpdate: 500,
+  series: {
+    type: 'bar',
+    id: 'sales',
+    data: [
+      {
+        value: 5,
+        groupId: 'animals'
+      },
+      {
+        value: 2,
+        groupId: 'fruits'
+      },
+      {
+        value: 4,
+        groupId: 'cars'
+      }
+    ],
+    universalTransition: {
+      enabled: true,
+      divideShape: 'clone'
+    }
+  }
+};
+const drilldownData = [
+  {
+    dataGroupId: 'animals',
+    data: [
+      ['Cats', 4],
+      ['Dogs', 2],
+      ['Cows', 1],
+      ['Sheep', 2],
+      ['Pigs', 1]
+    ]
+  },
+  {
+    dataGroupId: 'fruits',
+    data: [
+      ['Apples', 4],
+      ['Oranges', 2]
+    ]
+  },
+  {
+    dataGroupId: 'cars',
+    data: [
+      ['Toyota', 4],
+      ['Opel', 2],
+      ['Volkswagen', 2]
+    ]
+  }
+];
 
+const drilldownData2 = [
+  {
+    dataGroupId: 'Cats',
+    data: [
+    
+      ['Dogs', 2],
+      ['Cows', 1]
+   
+    ]
+  } 
+];
+myChart.on('click', function (event) {
+  if (event.data) {
+  console.log(event.data.groupId)
+   var subData=null;
+   if(event.data.groupId!='Cats') {
+      subData = drilldownData.find(function (data) {
+      return data.dataGroupId === event.data.groupId;
+    });
+     
+   }
+   else{
+        subData = drilldownData2.find(function (data) {
+      return data.dataGroupId === event.data.groupId;  });
+   }
+  
+    if (!subData) {
+      return;
+    }
+   
+    var f = subData.data.map(function (item) {
+      let h = new Object();
+      h.groupId=item[0]
+        h.value=item[1]
+          return h;
+        })
+        
+        console.log(f) 
+    //result = drilldownData.map(({drilldownData.data[0]: groupId, drilldownData.data[1]: value}) => ({groupId, value}));
+    
+    myChart.setOption({
+      xAxis: {
+        data: subData.data.map(function (item) {
+          return item[0];
+        })
+      },
+      series: {
+        type: 'bar',
+        id: 'sales',
+        dataGroupId: subData.dataGroupId,
+        data:  subData.data.map(function (item) {
+      let h = new Object();
+      h.groupId=item[0]
+        h.value=item[1]
+          return h;
+        })
+      //  subData.data.map(function (item) {
+     //     return item[1];
+      //  })
+        ,
+        universalTransition: {
+          enabled: true,
+          divideShape: 'clone'
+        }
+      },
+      graphic: [
+        {
+          type: 'text',
+          left: 50,
+          top: 20,
+          style: {
+            text: 'Back',
+            fontSize: 18
+          },
+          onclick: function () {
+            myChart.setOption(option);
+          }
+        }
+      ]
+    });
+  }
+});
    HttpClient hc = new HttpClient();
 
             string url = "http://localhost:19461/WeatherForecast/receive";

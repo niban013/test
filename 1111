@@ -1,3 +1,405 @@
+
+ <!--<div id="x" style="display:none;">
+        <input type="radio" name="sex" value="male" checked>男
+        <input type="radio" name="sex" value="female">女<p>
+    </div>-->
+////var dom = document.getElementById('chart-container');
+////var dom2 = document.getElementById('chart-container2');
+////var myChart = echarts.init(dom, null, {
+////    renderer: 'canvas',
+////    useDirtyRect: false
+////});
+
+////var myChart2 = echarts.init(dom2, null, {
+////    renderer: 'canvas',
+////    useDirtyRect: false
+////});
+var array = [];
+
+var myChart = echarts.init(document.getElementById('chart-container'));
+//var myChart2 = echarts.init(document.getElementById('chart-container2'));
+var app = {};
+
+optionq1 = {
+    xAxis: {
+        data: ['Animals', 'Fruits', 'Cars']
+    },
+    yAxis: {},
+    dataGroupId: '',
+    animationDurationUpdate: 500,
+    series: {
+        type: 'bar',
+        id: 'sales',
+        test: myChart.id,
+        data: [
+            {
+                value: 5,
+                groupId: 'animals'
+            },
+            {
+                value: 2,
+                groupId: 'fruits'
+            },
+            {
+                value: 4,
+                groupId: 'cars'
+            }
+        ],
+        universalTransition: {
+            enabled: true,
+            divideShape: 'clone'
+        }
+    }
+};
+
+//let obj = new Object();
+//obj.id = 'myChart'
+//obj.class = myChart
+//let obj2 = new Object();
+//obj2.id = 'myChart2'
+//obj2.class = myChart2
+//var arr = [obj, obj2]
+
+optionq2 = {
+    xAxis: {
+        data: ['Animals', 'Fruits', 'Cars']
+    },
+    yAxis: {},
+    dataGroupId: '',
+    animationDurationUpdate: 500,
+    series: {
+        type: 'bar',
+        id: 'sales',
+        data: [
+            {
+                value: 5,
+                groupId: 'animals'
+            },
+            {
+                value: 2,
+                groupId: 'fruits'
+            },
+            {
+                value: 4,
+                groupId: 'cars'
+            }
+        ],
+        universalTransition: {
+            enabled: true,
+            divideShape: 'clone'
+        }
+    }
+};
+//create('myChart', optionq1)
+//create('myChart2', optionq2)
+
+
+const clickFun = param => {
+    console.log(param)
+}
+myChart.setOption(optionq1);
+myChart.on('click', function (event) {
+    if (event.componentType == 'graphic') {
+        var gg = array.pop();
+        if (gg == '2') {
+            document.getElementById('x').style = "display:block"
+        } else {
+            document.getElementById('x').style = "display:none"
+        }
+    }
+    if (event.data) {
+        console.log(event.data.groupId)
+        var subData = null;
+        var flag;
+        if (event.data.groupId != 'Cats') {
+            subData = drilldownData.find(function (data) {
+                return data.dataGroupId === event.data.groupId;
+            });
+            flag = 1
+        }
+        else {
+            subData = drilldownData2.find(function (data) {
+                return data.dataGroupId === event.data.groupId;
+            });
+            flag = 2
+        }
+
+        if (!subData) {
+            return;
+        }
+        if (flag == 1) {
+            array.push(flag);
+            document.getElementById('x').style = "display:block;text-align: center;"
+
+         
+            option1 = {
+                xAxis: {
+                    data: subData.data.map(function (item) {
+                        return item[0];
+                    })
+                },
+                series: {
+                    type: 'bar',
+                    id: 'sales',
+                    dataGroupId: subData.dataGroupId,
+                    data: subData.data.map(function (item) {
+                        let h = new Object();
+                        h.groupId = item[0]
+                        h.value = item[1]
+                        return h;
+                    })
+                    //  subData.data.map(function (item) {
+                    //     return item[1];
+                    //  })
+                    ,
+                    universalTransition: {
+                        enabled: true,
+                        divideShape: 'clone'
+                    }
+                },
+                graphic: [
+                    {
+                        type: 'text',
+                        left: 50, name: 'ggg',
+                        top: 20,
+                        style: {
+                            text: 'Back',
+                            fontSize: 18
+                        },
+                        onclick: function () {
+                            myChart.setOption(optionq1);
+                        }
+                    }
+                ]
+            }
+        }
+
+        if (flag == 2) {
+            array.push(flag);
+            document.getElementById('x').style = "display:none"
+            var g = document.querySelector('input[name="sex"]:checked').value
+            option2 = {
+                xAxis: {
+                    data: subData.data.map(function (item) {
+                        return item[0];
+                    })
+                },
+                series: {
+                    type: 'bar',
+                    id: 'sales',
+                    dataGroupId: subData.dataGroupId,
+                    data: subData.data.map(function (item) {
+                        let h = new Object();
+                        h.groupId = item[0]
+                        h.value = item[1]
+                        return h;
+                    })
+                    //  subData.data.map(function (item) {
+                    //     return item[1];
+                    //  })
+                    ,
+                    universalTransition: {
+                        enabled: true,
+                        divideShape: 'clone'
+                    }
+                },
+                graphic: [
+                    {
+                        type: 'text',
+                        left: 50,
+                        top: 20,
+                        style: {
+                            text: 'Back',
+                            fontSize: 18
+                        },
+                        name:'kkk',
+                        info:
+                            {},
+                        onclick: function () {
+                            myChart.setOption(option1);
+                        }
+                    }
+                ]
+            }
+        }
+
+        if (flag == 1) {
+            myChart.setOption(option1)
+        }
+        if (flag == 2) {
+            myChart.setOption(option2)
+        }
+    }
+})
+
+//myChart2.setOption(optionq2);
+//myChart2.on('click', clickFun)
+ 
+const drilldownData = [
+    {
+        dataGroupId: 'animals',
+        data: [
+            ['Cats', 4],
+            ['Dogs', 2],
+            ['Cows', 1],
+            ['Sheep', 2],
+            ['Pigs', 1]
+        ]
+    },
+    {
+        dataGroupId: 'fruits',
+        data: [
+            ['Apples', 4],
+            ['Oranges', 2]
+        ]
+    },
+    {
+        dataGroupId: 'cars',
+        data: [
+            ['Toyota', 4],
+            ['Opel', 2],
+            ['Volkswagen', 2]
+        ]
+    }
+];
+
+const drilldownData2 = [
+    {
+        dataGroupId: 'Cats',
+        data: [
+
+            ['Dogs', 2],
+            ['Cows', 1]
+
+        ]
+    }
+];
+ 
+
+//myChart2.on('click', function (event) {
+//    if (event.data) {
+//        console.log(event.data.groupId)
+//        var subData = null;
+//        var flag;
+//        if (event.data.groupId !== 'Cats') {
+//            subData = drilldownData.find(function (data) {
+//                return data.dataGroupId === event.data.groupId;
+//            });
+//            flag = 1
+//        }
+//        else {
+//            subData = drilldownData2.find(function (data) {
+//                return data.dataGroupId === event.data.groupId;
+//            });
+//            flag = 2
+//        }
+
+//        if (!subData) {
+//            return;
+//        }
+//        if (flag === 1) {
+//             option11 = {
+//                xAxis: {
+//                    data: subData.data.map(function (item) {
+//                        return item[0];
+//                    })
+//                },
+//                series: {
+//                    type: 'bar',
+//                    id: 'sales',
+//                    dataGroupId: subData.dataGroupId,
+//                    data: subData.data.map(function (item) {
+//                        let h = new Object();
+//                        h.groupId = item[0]
+//                        h.value = item[1]
+//                        return h;
+//                    })
+//                    //  subData.data.map(function (item) {
+//                    //     return item[1];
+//                    //  })
+//                    ,
+//                    universalTransition: {
+//                        enabled: true,
+//                        divideShape: 'clone'
+//                    }
+//                },
+//                graphic: [
+//                    {
+//                        type: 'text',
+//                        left: 50,
+//                        top: 20,
+//                        style: {
+//                            text: 'Back',
+//                            fontSize: 18
+//                        },
+//                        onclick: function () {
+//                            myChart2.setOption(option);
+//                        }
+//                    }
+//                ]
+//            }
+//        }
+
+//        if (flag === 2) {
+//             option22 = {
+//                xAxis: {
+//                    data: subData.data.map(function (item) {
+//                        return item[0];
+//                    })
+//                },
+//                series: {
+//                    type: 'bar',
+//                    id: 'sales',
+//                    dataGroupId: subData.dataGroupId,
+//                    data: subData.data.map(function (item) {
+//                        var h = new Object();
+//                        h.groupId = item[0]
+//                        h.value = item[1]
+//                        return h;
+//                    })
+//                    //  subData.data.map(function (item) {
+//                    //     return item[1];
+//                    //  })
+//                    ,
+//                    universalTransition: {
+//                        enabled: true,
+//                        divideShape: 'clone'
+//                    }
+//                },
+//                graphic: [
+//                    {
+//                        type: 'text',
+//                        left: 50,
+//                        top: 20,
+//                        style: {
+//                            text: 'Back',
+//                            fontSize: 18
+//                        },
+//                        onclick: function () {
+//                            myChart2.setOption(option11);
+//                        }
+//                    }
+//                ]
+//            }
+//        }
+
+//        if (flag === 1) {
+//            myChart2.setOption(option11)
+//        }
+//        if (flag === 2) {
+//            myChart2.setOption(option22)
+//        }
+//    }
+//});
+
+
+//if (option && typeof option === 'object') {
+//    myChart.setOption(option);
+//    myChart2.setOption(option);
+//}
+
+//window.addEventListener('resize', myChart.resize);
+//window.addEventListener('resize', myChart2.resize);
 option = {
   xAxis: {
     data: ['Animals', 'Fruits', 'Cars']

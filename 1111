@@ -1,3 +1,12 @@
+ legend: {	selector: [
+						{ type: 'all', title: '全选' },
+						{ type: 'inverse', title: '反选' },
+					],
+    data: ['Forest', 'Steppe', 'Desert', 'Wetland']
+  },
+
+
+
 https://support.huaweicloud.com/intl/en-us/sdk-dotnet-devg-obs/obs_25_0408.html
  <!--<div id="x" style="display:none;">
         <input type="radio" name="sex" value="male" checked>男

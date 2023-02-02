@@ -1,3 +1,71 @@
+ <div class="main-container">
+	<header class="header-2">
+		<div class="branding">
+			<a class="nav-link">
+				<clr-icon shape="home" size="24"></clr-icon>
+				<span class="title">Project Clarity</span>
+			</a>
+		</div>
+		<div class="header-nav">
+			<a class="active nav-link nav-text">Home</a>
+		</div>
+	</header>
+	<div class="content-container">
+		<div class="content-area">
+<clr-datagrid  (clrDgRefresh)="refresh($event)" [(clrDgSelected)]="selected">
+  <clr-dg-column [clrDgSortOrder]="descSort">kk</clr-dg-column>
+
+  <clr-dg-row *clrDgItems="let index of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]">
+    <clr-dg-cell >
+      <ng-container *ngFor="let repeat of ' '.repeat(index).split('')">
+        cell content cell content cell content
+      </ng-container>
+    </clr-dg-cell>
+  </clr-dg-row>
+  <clr-dg-footer>
+        <clr-dg-pagination #pagination [clrDgPageSize]="pageSize" [clrDgTotalItems]="total" [clrDgPageSize]="pageSize" [(clrDgPage)]="currentPage">
+          <clr-dg-page-size [clrPageSizeOptions]="[2, 5, 10]" (change)="onItemsPerPageChange($event)">Items per page</clr-dg-page-size>
+          
+          {{pagination.firstItem + 1}} - {{pagination.lastItem + 1}}
+          of {{pagination.totalItems}} page
+      </clr-dg-pagination>
+  </clr-dg-footer>
+</clr-datagrid>
+		</div>
+	</div>
+</div>
+ 
+ import { Component } from '@angular/core';
+import { ClrDatagridStateInterface } from '@clr/angular';
+
+@Component({
+  selector: 'my-app',
+  templateUrl: './app.component.html',
+  styleUrls: [ './app.component.css' ]
+})
+export class AppComponent  {
+  total: number = 20;
+  pageSize: number = 5;
+  currentPage: number = 2;
+
+  onItemsPerPageChange(event) {
+    let newValue = +event.target.value.slice(3);
+    if(this.pageSize !== newValue) {
+      this.pageSize = newValue;
+      
+    }
+  }
+
+  refresh(state: ClrDatagridStateInterface) {
+    console.log(state);
+   
+    if(state.page) {
+ //alert('o')
+    }
+}
+}
+
+ 
  legend: {	selector: [
 						{ type: 'all', title: '全选' },
 						{ type: 'inverse', title: '反选' },

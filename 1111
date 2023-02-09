@@ -1,4 +1,125 @@
 https://github.com/vmware/clarity/issues/1057
+https://stackoverflow.com/questions/60980488/clarity-datagrid-column-input-filter-losing-focus-on-first-keypress-after-moving
+/*
+ * Copyright (c) 2016-2018 VMware, Inc. All Rights Reserved.
+ * This software is released under MIT license.
+ * The full license information can be found in LICENSE in the root directory of this project.
+ */
+import { Component, HostListener, ViewChild } from "@angular/core";
+import { FetchResult, Inventory } from "./inventory/inventory";
+import { User } from "./inventory/user";
+import { ClrDatagridStateInterface } from "@clr/angular";
+import { Subject } from "rxjs";
+import { debounceTime } from "rxjs/operators";
+
+@Component({
+  selector: "clr-datagrid-full-demo",
+  providers: [Inventory],
+  templateUrl: "./app.component.html",
+  styleUrls: ["./app.component.css"]
+})
+export class DatagridFullDemo {
+  users: User[];
+  total: number;
+  loading: boolean = true;
+  selectedUser;
+  refreshGuard = true; // init to true to get first run data
+  debouncer = new Subject<any>();
+  datagridState: ClrDatagridStateInterface;
+
+  constructor(private inventory: Inventory) {
+    inventory.size = 103;
+    this.inventory.reset();
+    this.users = this.inventory.all;
+  }
+
+  ngOnInit() {
+    this.debouncer.asObservable().subscribe(state => {
+      this.doRefresh(state);
+    });
+  }
+
+  private doRefresh(state: ClrDatagridStateInterface) {
+    if (this.refreshGuard) {
+      this.loading = true;
+      const filters: { [prop: string]: any[] } = {};
+      console.log("refresh called");
+      if (state.filters) {
+        for (const filter of state.filters) {
+          const { property, value } = <{ property: string; value: string }>(
+            filter
+          );
+          filters[property] = [value];
+        }
+      }
+      this.inventory
+        .filter(filters)
+        .sort(<{ by: string; reverse: boolean }>state.sort)
+        .fetch(state.page.from, state.page.size)
+        .then((result: FetchResult) => {
+          this.users = result.users;
+          this.total = result.length;
+          this.loading = false;
+          this.selectedUser = this.users[1];
+          this.refreshGuard = false;
+        });
+    }
+  }
+
+  @HostListener("document:keydown.enter", ["$event"]) enterKeydownHandler(
+    event: KeyboardEvent
+  ) {
+    const eventSource: HTMLElement = event.srcElement as HTMLElement;
+    const parentElement = eventSource.parentElement as HTMLElement;
+    if (parentElement.classList.contains("datagrid-filter")) {
+      this.refreshGuard = true;
+      this.debouncer.next(this.datagridState);
+    }
+  }
+
+  refresh(state: ClrDatagridStateInterface) {
+    this.datagridState = state;
+    this.debouncer.next(state);
+  }
+}
+
+<div class="main-container">
+	<header class="header-2">
+		<div class="branding">
+			<a class="nav-link">
+				<clr-icon shape="home" size="24"></clr-icon>
+				<span class="title">Project Clarity</span>
+			</a>
+		</div>
+		<div class="header-nav">
+			<a class="active nav-link nav-text">Home</a>
+		</div>
+	</header>
+	<div class="content-container">
+		<div class="content-area">
+			<h2>SO <a href="https://stackoverflow.com/questions/60980488/clarity-datagrid-column-input-filter-losing-focus-on-first-keypress-after-moving">60980488</a></h2>
+
+<clr-datagrid (clrDgRefresh)="refresh($event)" [clrDgLoading]="loading" [(clrDgSingleSelected)]="selectedUser">
+  <clr-dg-column [clrDgField]="'id'">User ID</clr-dg-column>
+  <clr-dg-column [clrDgField]="'name'">Name</clr-dg-column>
+
+  <clr-dg-row *ngFor="let user of users" [clrDgItem]="user" >
+    <clr-dg-cell>{{user.id}}</clr-dg-cell>
+    <clr-dg-cell>{{user.name}}</clr-dg-cell>
+  </clr-dg-row>
+
+  <clr-dg-footer>
+    {{pagination.firstItem + 1}} - {{pagination.lastItem + 1}} of {{total}} users
+    <clr-dg-pagination #pagination [clrDgTotalItems]="total" [clrDgPageSize]="10"></clr-dg-pagination>
+  </clr-dg-footer>
+</clr-datagrid>
+
+Selected User: {{this.selectedUser | json}}
+		</div>
+	</div>
+</div>
+
+
 
 https://github.com/vmware/clarity/issues/1196 <div class="main-container">
 	<header class="header-2">

@@ -1,3 +1,102 @@
+import { Component, ElementRef, HostListener } from '@angular/core';
+import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { ClrDatagridStateInterface } from '@clr/angular';
+import { Subject } from 'rxjs';
+
+@Component({
+  selector: 'my-app',
+  styleUrls: ['app.component.css'],
+  templateUrl: 'app.component.html'
+})
+export class AppComponent {
+  users: any;
+  data: any;
+  total: number;
+  loading: boolean = true;
+  cls:ClrDatagridStateInterface
+  refreshGuard = true; // init to true to get first run data
+  debouncer = new Subject<any>(); // this is now an enter key debouncer
+ page = 0;
+  constructor(private http: HttpClient,private elementRef:ElementRef) {
+  
+
+  }
+
+  ngOnInit() {
+    this.debouncer.asObservable().subscribe(state => {
+      this.refresh(state);
+    });
+  }
+
+  @HostListener("document:keydown.enter", ["$event"]) enterKeydownHandler(
+    event: KeyboardEvent
+  ) {
+      // Use a host listener that checks the event element parent to make sure its a datagrid filter
+    const eventSource: HTMLElement = event.srcElement as HTMLElement;
+    const parentElement = eventSource.parentElement as HTMLElement;
+    if (parentElement.classList.contains("datagrid-filter")) {
+      // tell our guard its ok to refresh
+      this.refreshGuard = true;
+      // pass the latest state to the debouncer to make the request
+      this.debouncer.next(this.cls);
+    }
+  }
+
+  canNext() {
+    return (this.data) ? (this.data.page < this.data.total_pages) : false;
+  }
+  
+  canPrevious() {
+    return (this.data) ? (this.data.page > 1) : false;
+  }
+
+  ngAfterViewInit() {
+    this.elementRef.nativeElement.querySelector('.pagination-next')
+                                  .addEventListener('click', this.onClick.bind(this));
+  }
+
+  onClick(event) {
+    if (this.cls.page.from >= this.cls.page.size) {
+      this.page = this.cls.page.from / this.cls.page.size;
+    }
+    this.page++;
+    console.log(this.page);
+    this.getdata(this.page)
+  
+  }
+  getdata(page){
+    this.http.get<any>('https://reqres.in/api/unknown?page=' + page).subscribe(async data => {
+        console.log(data);
+        this.users = data.data;
+        this.data = data;
+        this.loading = false;
+        this.refreshGuard = false;
+      });
+
+  }
+  refresh(state: ClrDatagridStateInterface) {
+    if (this.refreshGuard) {
+    this.loading = true;
+    console.log(state);
+    this.cls=state
+    //this.debouncer.next(state);
+    if (this.cls.page.from >= this.cls.page.size) {
+      this.page = this.cls.page.from / this.cls.page.size;
+    }
+    this.page++;
+    console.log('refresh:'+this.page);
+    this.getdata(this.page)
+ 
+   // console.log(1);
+  }
+   
+  }
+}
+
+
+
+
 https://github.com/vmware/clarity/issues/1057
 https://stackoverflow.com/questions/60980488/clarity-datagrid-column-input-filter-losing-focus-on-first-keypress-after-moving
 /*

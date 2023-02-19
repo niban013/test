@@ -1,3 +1,165 @@
+
+import { Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Subject } from 'rxjs';
+import { ClrDatagrid, ClrDatagridStateInterface } from '@clr/angular';
+import * as faker from 'faker';
+
+import {ClrDatagridFilterInterface} from "@clr/angular";
+class OrFilter implements ClrDatagridFilterInterface<any> {
+  property: string;
+  model: boolean = true;
+  txt:string;
+  changes = new Subject<any>();
+  constructor(_property: string) {
+    this.property = _property;
+  } 
+  isActive(): boolean {
+    return this.model !== undefined;
+  }
+  accepts(row: any) {
+
+    console.log(row) 
+    // not used; filtered on server side instead
+    return true;
+  }
+/*  accepts(row: any, search: string): boolean {
+    if ((row.hasOwnProperty(this.property)) && (row[this.property] === null)) {
+      return false;
+    }
+    const substrings = search.split('|');
+    for (const s of substrings) {
+      if ((row.hasOwnProperty(this.property)) &&
+        (row[this.property].toString().toLowerCase().includes(s.toLowerCase()))) {
+        return true;
+      }
+    }
+    return false;
+  }*/
+  get state() {
+    return {col: 'test', value: this.model,value2:this.txt}
+  }
+  apply() {
+    this.changes.next(this.model);
+  }
+  clear() {
+    this.model = undefined;
+    this.apply();
+  }
+}
+class MyFilter implements ClrDatagridFilterInterface<any> {
+    model: boolean = true;
+    txt:string;
+    changes = new Subject<any>();
+    isActive(): boolean {
+      return this.model !== undefined;
+    }
+    accepts(user: any) {   console.log(user) 
+      // not used; filtered on server side instead
+      return true;
+    }
+    get state() {
+      return {col: 'contains-s', value: this.model,value2:this.txt}
+    }
+    apply() {
+      this.changes.next(this.model);
+    }
+    clear() {
+      this.model = undefined;
+      this.apply();
+    }
+}
+
+@Component({
+  selector: 'my-app',
+  templateUrl: './app.component.html',
+  styleUrls: [ './app.component.css' ]
+})
+export class AppComponent  {
+  OrFilter = new OrFilter('name');
+  myFilter2 = new MyFilter();
+  private allUsers = Array.from({length: 50}, faker.helpers.userCard);
+
+  users = this.allUsers;
+  refresh(state: ClrDatagridStateInterface) {
+    console.log(state) 
+     console.log(this.allUsers)
+      // mock server call 
+      setTimeout(()=>{
+        if (state.filters) {
+          if (state.filters[0].model) {
+            this.users = this.allUsers.filter(user => user.name.indexOf('s') > -1);
+          } else {
+            this.users = this.allUsers.filter(user => user.name.indexOf('s') === -1);
+          }
+        } else {
+          this.users = this.allUsers;
+        }
+      }, 500);
+  }
+}
+
+<div class="main-container">
+	<header class="header-2">
+		<div class="branding">
+			<a class="nav-link">
+				<clr-icon shape="home" size="24"></clr-icon>
+				<span class="title">Project Clarity</span>
+			</a>
+		</div>
+		<div class="header-nav">
+			<a class="active nav-link nav-text">Home</a>
+		</div>
+	</header>
+	<div class="content-container">
+		<div class="content-area">
+      <div style="position: relative">
+			<clr-datagrid (clrDgRefresh)="refresh($event)">
+        <clr-dg-column [clrDgField]="'name'">Name
+        <clr-dg-filter [clrDgFilter]="myFilter2">
+        "S" <input type="checkbox" clrCheckbox [(ngModel)]="myFilter2.model"/>
+        <input clrInput placeholder="Fill me in, scotty!" name="name" [(ngModel)]="myFilter2.txt" />
+        <button  (click)="myFilter2.apply()">apply</button>
+        <button  (click)="myFilter2.clear()">clear</button>
+      </clr-dg-filter>
+        </clr-dg-column>
+
+
+
+        <clr-dg-column [clrDgField]="'name'">
+          Contains 's'
+          <clr-dg-filter [clrDgFilter]="OrFilter">
+            "S" <input type="checkbox" clrCheckbox [(ngModel)]="OrFilter.model"/>
+            <input clrInput placeholder="Fill me in, scotty!" name="name" [(ngModel)]="OrFilter.txt" />
+            <button  (click)="OrFilter.apply()">apply</button>
+            <button  (click)="OrFilter.clear()">clear</button>
+          </clr-dg-filter>
+        </clr-dg-column>
+
+        <clr-dg-row *ngFor="let user of users">
+          <clr-dg-cell>{{user.name}}
+          </clr-dg-cell>
+          <clr-dg-cell>
+            {{user.name.indexOf('s') !== -1}}
+          </clr-dg-cell>
+      </clr-dg-row>
+
+        
+      <clr-dg-footer>
+        <clr-dg-pagination #pagination [clrDgPageSize]="10">
+        </clr-dg-pagination>
+      </clr-dg-footer>
+        
+
+      </clr-datagrid>
+      </div>
+		</div>
+	</div>
+</div>
+
+
+
+
+
 https://stackoverflow.com/questions/470542/how-do-i-limit-the-number-of-rows-returned-by-an-oracle-query-after-ordering/57547541#57547541
 
 

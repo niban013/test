@@ -1,0 +1,96 @@
+<div class="main-container">
+	<header class="header-2">
+		<div class="branding">
+			<a class="nav-link">
+				<clr-icon shape="home" size="24"></clr-icon>
+				<span class="title">Project Clarity</span>
+			</a>
+		</div>
+		<div class="header-nav">
+			<a class="active nav-link nav-text">Home</a>
+		</div>
+	</header>
+	<div class="content-container">
+		<div class="content-area">
+      <div style="position: relative">
+			<clr-datagrid (clrDgRefresh)="refresh($event)">
+        <clr-dg-column [clrDgField]="'name'">Name
+        <clr-dg-filter [clrDgFilter]="capitalFilter" >
+        <app-boolean-filter  prop="capital" #capitalFilter class="boolean-filter"></app-boolean-filter>
+      </clr-dg-filter>
+ 
+        </clr-dg-column>
+
+
+
+        <clr-dg-column [clrDgField]="'name'">
+          Contains 's'
+       <!-- <clr-dg-filter [clrDgFilter]="OrFilter">
+            "S" <input type="checkbox" clrCheckbox [(ngModel)]="OrFilter.model"/>
+            <input clrInput placeholder="Fill me in, scotty!" name="name" [(ngModel)]="OrFilter.txt" />
+            <button  (click)="OrFilter.apply()">apply</button>
+            <button  (click)="OrFilter.clear()">clear</button>
+          </clr-dg-filter>-->  
+        </clr-dg-column>
+
+        <clr-dg-row *ngFor="let user of users">
+          <clr-dg-cell>{{user.name}}
+          </clr-dg-cell>
+          <clr-dg-cell>
+            {{user.name.indexOf('s') !== -1}}
+          </clr-dg-cell>
+      </clr-dg-row>
+
+        
+      <clr-dg-footer>
+        <clr-dg-pagination #pagination [clrDgPageSize]="10">
+        </clr-dg-pagination>
+      </clr-dg-footer>
+        
+
+      </clr-datagrid>
+      </div>
+		</div>
+	</div>
+</div>
+
+
+import { Component, Input } from '@angular/core';
+import { ClrDatagridFilterInterface } from '@clr/angular';
+import { Subject } from 'rxjs';
+
+@Component({
+    selector: 'app-boolean-filter',
+    template: `
+    <input clrInput placeholder="Fill me in, scotty!" name="name" />
+    <button clrPopoverOpenCloseButton (click)="apply()">apply</button>
+            <button  clrPopoverOpenCloseButton (click)="clear()">clear</button>
+    
+        `
+})
+export class BooleanFilterComponent implements ClrDatagridFilterInterface<any> {
+ 
+    model: boolean = false;
+
+    changes = new Subject<any>();
+    @Input() prop: string;
+
+    isActive(): boolean {
+      return this.model !== undefined;
+    }
+    accepts(user: any) {   console.log(user) 
+      // not used; filtered on server side instead
+      return true;
+    }
+    get state() {
+      return {col: 'contains-s', value: this.model,value2:this.prop}
+    }
+    apply() {
+      console.log(this.prop)
+      this.changes.next(this.model);
+    }
+    clear() {
+      this.model = undefined;
+      this.apply();
+    }
+}

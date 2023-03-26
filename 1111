@@ -1,3 +1,68 @@
+
+https://blog.csdn.net/carcarrot/article/details/106098200
+
+using Microsoft.Practices.EnterpriseLibrary.Data;
+using Npgsql;
+using NpgsqlTypes;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace Webdev
+{
+    public partial class WebForm1 : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+           var db= DatabaseFactory.CreateDatabase();
+            var cmd = db.GetSqlStringCommand("select * from ddd");
+            var g = db.ExecuteDataSet(cmd);
+        }
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value, NpgsqlDbType dbType)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value ?? DBNull.Value;
+            parameter.NpgsqlDbType = dbType;
+            command.Parameters.Add(parameter);
+
+            return command;
+        }
+		public static NpgsqlDbType DbType2PgsqlDbType(DbType DbType_in)
+		{
+			switch (DbType_in)
+			{
+				case DbType.Int64:
+					return NpgsqlDbType.Bigint;
+				case DbType.Int32:
+					return NpgsqlDbType.Integer;
+				case DbType.Int16:
+					return NpgsqlDbType.Smallint;
+				case DbType.Boolean:
+					return NpgsqlDbType.Boolean; 
+				case DbType.String: 
+					return NpgsqlDbType.Varchar; 
+				case DbType.DateTime:
+					return NpgsqlDbType.Timestamp;
+				case DbType.Single:
+					return NpgsqlDbType.Real;
+				case DbType.Double:
+					return NpgsqlDbType.Double;
+				case DbType.Decimal:
+					return NpgsqlDbType.Numeric; 
+				default:
+					{
+						throw new Exception(string.Format("undefined variable type: {0}", DbType_in.ToString() ));
+					}
+				 
+			}
+		}
+}
+
 https://guokai-ni.blogspot.com/2016/07/kendo-grid-2-inline-edit.html
 
 

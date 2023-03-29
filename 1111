@@ -1,3 +1,26 @@
+static public IEnumerable<T> SkipLast<T>(this IEnumerable<T> data, int count)
+		{
+			if (data == null || count < 0) yield break;
+			if (count == 0)
+			{
+				foreach (T item in data)
+					yield return item;
+			}
+			else
+			{
+				T[] queue = data.Take(count).ToArray();
+				int index = 0;
+
+				foreach (T item in data.Skip(count))
+				{
+					index %= count;
+					yield return queue[index];
+					queue[index] = item;
+					index++;
+				}
+			}
+		}
+	}			var o = string.Join("/", a.TrimStart('/').Split('/').SkipLast(1));
 
 https://blog.csdn.net/carcarrot/article/details/106098200
 

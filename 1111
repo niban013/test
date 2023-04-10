@@ -1,3 +1,40 @@
+
+using (var conn = new NpgsqlConnection("User ID=postgres;Password=12345;Host=localhost;Port=5432;Database=postgres;Pooling=true;"))
+			{
+				conn.Open();
+				NpgsqlCommand cmdd = new NpgsqlCommand();
+				cmdd.Connection = conn;
+
+				NpgsqlParameter[] arParams = new NpgsqlParameter[2];
+
+				arParams[0] = new NpgsqlParameter("$1", NpgsqlTypes.NpgsqlDbType.Varchar, 36);
+				arParams[0].Direction = ParameterDirection.Input;
+				arParams[0].Value ="k";
+
+				arParams[1] = new NpgsqlParameter("$2", NpgsqlTypes.NpgsqlDbType.Varchar, 36);
+				arParams[1].Direction = ParameterDirection.Input;
+				arParams[1].Value = "t";
+
+				//	cmdd.CommandType = CommandType.StoredProcedure;
+				//cmdd.CommandText = "CALL addnewuser ( @passedemail , @passedpass , '5' )";
+				//cmdd.CommandText = "call transfer2($1,$2)";
+				cmdd.CommandText = "call transfer2('1','2')";
+				//cmdd.Parameters.AddWithValue("sender", NpgsqlDbType.Varchar, "b");
+				//cmdd.Parameters.AddWithValue("receiver", NpgsqlDbType.Varchar, "p");
+				//cmdd.Parameters.AddRange(arParams);
+
+				cmdd.ExecuteNonQuery();
+
+				//Console.WriteLine(cmdd.Statements[0]);
+				conn.Close();
+				//conn.Open();
+				//using (var cmd = conn.CreateCommand())
+				//{
+				//	cmd.CommandText = "CALL transfer()";
+				//	cmd.ExecuteNonQuery();
+				//}
+				//conn.Close();
+			}
 static public IEnumerable<T> SkipLast<T>(this IEnumerable<T> data, int count)
 		{
 			if (data == null || count < 0) yield break;

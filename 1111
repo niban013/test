@@ -1,4 +1,6 @@
-
+https://github.com/JingoC/WebDavServer/tree/master/WebDavServer.WebApi
+https://github.com/ramondeklein/nwebdav/blob/15afc74b9adb2f4ed9d406022cb61d76fff45157/NWebDav.Server/Handlers/PropFindHandler.cs#L62
+https://pydigger.com/pypi/webdavclient
 using (var conn = new NpgsqlConnection("User ID=postgres;Password=12345;Host=localhost;Port=5432;Database=postgres;Pooling=true;"))
 			{
 				conn.Open();

@@ -1,4 +1,8 @@
+如果您需要将文档从MS office only选项保存到服务器，则PROPFIND和GET是不够的。
 
+下面是您需要实现的列表: GET、HEAD、LOCK、OPTIONS、PROPFIND、PROPPATCH、PUT、UNLOCK
+
+RFC 2518被RFC 4918取代。
 http://cn.voidcc.com/question/p-nhrubxuf-baz.html
 https://github.com/JingoC/WebDavServer/tree/master/WebDavServer.WebApi
 https://github.com/ramondeklein/nwebdav/blob/15afc74b9adb2f4ed9d406022cb61d76fff45157/NWebDav.Server/Handlers/PropFindHandler.cs#L62

@@ -1,6 +1,180 @@
+
+http://cn.voidcc.com/question/p-nhrubxuf-baz.html
 https://github.com/JingoC/WebDavServer/tree/master/WebDavServer.WebApi
 https://github.com/ramondeklein/nwebdav/blob/15afc74b9adb2f4ed9d406022cb61d76fff45157/NWebDav.Server/Handlers/PropFindHandler.cs#L62
 https://pydigger.com/pypi/webdavclient
+ class Program
+    {
+        static void Main(string[] args)
+        {
+            var baseUri = "http://127.0.0.1:8080/";
+            var directory = "C:\\WebDavRoot\\";
+            HttpListener listener = new HttpListener();
+            listener.Prefixes.Add(baseUri);
+            listener.AuthenticationSchemes = AuthenticationSchemes.Anonymous;
+            listener.Realm = "WebDAV server";
+            listener.Start();
+            Console.WriteLine("WebDAV server running...");
+
+            while (true)
+            {
+                HttpListenerContext context = listener.GetContext();
+                HttpListenerRequest request = context.Request;
+                HttpListenerResponse response = context.Response;
+
+                Console.WriteLine("Request: {0} {1}", request.HttpMethod, request.RawUrl);
+                //string fullPath = rootPath + request.Url.LocalPath;
+
+                //FileInfo fileInfo = new FileInfo(fullPath);
+                var url = "vr";// request.Url.AbsolutePath.TrimEnd('/');
+                var filePath = Path.Combine(directory, url);
+                filePath = @"C:\\WebDavRoot\\vr\\z.xlsx";
+                if (request.HttpMethod == "GET")
+                {
+                    if (File.Exists(filePath))
+                    {
+                        response.ContentType = "text/plain";
+                        response.ContentLength64 = new FileInfo(filePath).Length;
+
+                        using (var stream = new FileInfo(filePath).OpenRead())
+                        {
+                            stream.CopyTo(response.OutputStream);
+                        }
+
+                        response.StatusCode = (int)HttpStatusCode.OK;
+                    }
+                }
+                else if (request.HttpMethod == "PUT")
+                {
+                    //string filePath = request.Url.LocalPath.Substring(1);
+                    //byte[] contentBytes = new byte[request.ContentLength64];
+                    //request.InputStream.Read(contentBytes, 0, contentBytes.Length);
+                    //string content = Encoding.UTF8.GetString(contentBytes);
+
+                    //Console.WriteLine("Received content: {0}", content);
+
+                    //using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
+                    //{
+                    //    fileStream.Write(contentBytes, 0, contentBytes.Length);
+                    //}
+
+                    //response.StatusCode = 201;
+                    //response.StatusDescription = "Created";
+                }
+                else if (request.HttpMethod == "OPTIONS")
+                {
+                    response.Headers.Add("Allow", "GET, HEAD, PROPFIND, PROPPATCH, MKCOL, PUT, DELETE, COPY, MOVE, LOCK, UNLOCK");
+                    response.Headers.Add("DAV", "1, 2");
+                    response.StatusCode = 200;
+                    response.OutputStream.Close();
+                }
+                else if (context.Request.HttpMethod == "PROPFIND")
+                {
+                    //string path = request.Url.LocalPath.TrimEnd('/');
+                    //string xml = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    //<D:multistatus xmlns:D=""DAV:"">
+                    //  <D:response>
+                    //    <D:href>" + path + @"</D:href>
+                    //    <D:propstat>
+                    //      <D:prop>
+                    //        <D:creationdate>2021-09-01T00:00:00Z</D:creationdate>
+                    //        <D:getcontenttype>application/octet-stream</D:getcontenttype>
+                    //        <D:getcontentlength>1234</D:getcontentlength>
+                    //        <D:getlastmodified>2021-09-01T00:00:00Z</D:getlastmodified>
+                    //      </D:prop>
+                    //      <D:status>HTTP/1.1 200 OK</D:status>
+                    //    </D:propstat>
+                    //  </D:response>
+                    //</D:multistatus>";
+
+                    //byte[] xmlBytes = Encoding.UTF8.GetBytes(xml);
+                    //response.ContentLength64 = xmlBytes.Length;
+                    //response.ContentType = "application/xml";
+                    //response.OutputStream.Write(xmlBytes, 0, xmlBytes.Length);
+                    //response.OutputStream.Close();
+                }
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                else
+                {
+                    response.StatusCode = 405;
+                    response.OutputStream.Close();
+                }
+            }
+        }
+
+        //private void HandlePropfind(HttpListenerContext context)
+        //{
+        //    // Get the requested URL and parse it
+        //    var url = new Uri(context.Request.Url.GetLeftPart(UriPartial.Path));
+        //    var depth = context.Request.Headers["Depth"];
+        //    var infiniteDepthMode = depth == "infinity";
+
+        //    // Create the XML document that will contain the properties
+        //    var doc = new XDocument(new XDeclaration("1.0", "utf-8", "no"));
+        //    var multistatus = new XElement(WebDavXml.Dav + "multistatus");
+        //    doc.Add(multistatus);
+
+        //    // If the URL represents a directory, add its contents to the response
+        //    if (Directory.Exists(url.LocalPath))
+        //    {
+        //        var dirInfo = new DirectoryInfo(url.LocalPath);
+        //        foreach (var subDir in dirInfo.GetDirectories())
+        //        {
+        //            var responseElement = CreateResponseElement(doc, $"{url}/{subDir.Name}/");
+        //            multistatus.Add(responseElement);
+        //        }
+        //        foreach (var file in dirInfo.GetFiles())
+        //        {
+        //            var responseElement = CreateResponseElement(doc, $"{url}/{file.Name}");
+        //            multistatus.Add(responseElement);
+        //        }
+        //    }
+        //    else if (File.Exists(url.LocalPath))
+        //    {
+        //        // If the URL represents a file, add its properties to the response
+        //        var responseElement = CreateResponseElement(doc, url.ToString());
+        //        multistatus.Add(responseElement);
+        //    }
+
+        //    // Write the response to the output stream
+        //    var responseBytes = Encoding.UTF8.GetBytes(doc.ToString());
+        //    context.Response.ContentLength64 = responseBytes.Length;
+        //    context.Response.ContentType = "text/xml";
+        //    context.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
+        //    context.Response.OutputStream.Close();
+        //}
+
+        //private XElement CreateResponseElement(XDocument doc, string href)
+        //{
+        //    var response = new XElement(WebDavXml.Dav + "response",
+        //        new XElement(WebDavXml.Dav + "href", href),
+        //        new XElement(WebDavXml.Dav + "propstat",
+        //            new XElement(WebDavXml.Dav + "status", "HTTP/1.1 200 OK"),
+        //            new XElement(WebDavXml.Dav + "prop",
+        //                new XElement(WebDavXml.Dav + "creationdate", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ")),
+        //                new XElement(WebDavXml.Dav + "getlastmodified", DateTime.Now.ToString("R")),
+        //                new XElement(WebDavXml.Dav + "getcontenttype", "application/octet-stream"),
+        //                new XElement(WebDavXml.Dav + "getcontentlength", "0")
+        //            )
+        //        )
+        //    );
+        //    return response;
+        //}
+
+    }
+
+
 using (var conn = new NpgsqlConnection("User ID=postgres;Password=12345;Host=localhost;Port=5432;Database=postgres;Pooling=true;"))
 			{
 				conn.Open();

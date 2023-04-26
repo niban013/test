@@ -1,0 +1,581 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
+
+namespace webdavconsole
+{
+    class Program
+    {
+        public static readonly string baseUri = "http://127.0.0.1:8080/";
+        public static readonly string directory = @"C:\WebDavRoot\";
+        public static readonly XNamespace DavNs = "DAV:";
+        public static readonly string DavNsPrefix = "D";
+
+
+        static void Main(string[] args)
+        {
+
+            HttpListener listener = new HttpListener();
+            listener.Prefixes.Add(baseUri);
+            //  listener.AuthenticationSchemes = AuthenticationSchemes.Basic;
+            //string username = "advtek09.jn";
+            //string password = "1qaz2wsxC";
+            //listener.AuthenticationSchemeSelectorDelegate = new AuthenticationSchemeSelector(AuthenticationSchemeForClient);
+
+            listener.Realm = "WebDAV server";
+            listener.Start();
+            Console.WriteLine("WebDAV server running...");
+
+            while (true)
+            {
+                HttpListenerContext context = listener.GetContext();
+                HttpListenerRequest request = context.Request;
+                HttpListenerResponse response = context.Response;
+
+                Console.WriteLine("Request: {0} {1}", request.HttpMethod, request.RawUrl);
+                //string fullPath = rootPath + request.Url.LocalPath;
+
+                //FileInfo fileInfo = new FileInfo(fullPath);
+                var url = "vr";// request.Url.AbsolutePath.TrimEnd('/');
+                var filePath = Path.Combine(directory, url);
+                // filePath = @"C:\\WebDavRoot\\vr\\z.xlsx";
+                //var dept = "OA-MARS02";
+                //var fileid = "63ed1c05-3232-4904-b265-52258b0179d0";
+                //filePath = string.Format(@"\\10.55.9.77\PDOCS$\TN002\{0}\DOCUMENTS\{1}\{2}", dept, dept, fileid);
+                if (request.HttpMethod == "GET")
+                {
+                    string path = request.Url.LocalPath;
+                    filePath = Path.Combine(directory, path);
+
+                    if (File.Exists(filePath))
+                    {
+                        response.ContentType = "application/octet-stream";
+                        response.ContentLength64 = new FileInfo(filePath).Length;
+
+                        using (var stream = new FileInfo(filePath).OpenRead())
+                        {
+                            stream.CopyTo(response.OutputStream);
+                        }
+
+                        response.StatusCode = (int)HttpStatusCode.OK;
+                    }
+                    response.Close();
+                }
+                else if (request.HttpMethod == "PUT")
+                {
+                    using (FileStream fs = new FileStream(filePath, FileMode.Create))
+                    {
+                        request.InputStream.CopyTo(fs);
+                        response.StatusCode = (int)HttpStatusCode.Created;
+                    }
+
+                    response.Close();
+
+                    ////string filePath = request.Url.LocalPath.Substring(1);
+                    //filePath = @"C:\\WebDavRoot\\vr\\z.xlsx";
+                    //byte[] contentBytes = new byte[request.ContentLength64];
+                    //request.InputStream.Read(contentBytes, 0, contentBytes.Length);
+                    //string content = Encoding.UTF8.GetString(contentBytes);
+
+                    //Console.WriteLine("Received content: {0}", content);
+
+                    //using (FileStream fileStream = new FileStream(filePath, FileMode.Create))
+                    //{
+                    //    fileStream.Write(contentBytes, 0, contentBytes.Length);
+                    //}
+
+                    //response.StatusCode = 201;
+                    //response.StatusDescription = "Created";
+                }
+                else if (request.HttpMethod == "OPTIONS")
+                {
+                    response.Headers.Add("Allow", "OPTIONS, TRACE, GET, HEAD, POST, COPY, PROPFIND, DELETE, MOVE, PROPPATCH, MKCOL, LOCK, UNLOCK");
+                    response.Headers.Add("Public", "OPTIONS, TRACE, GET, HEAD, POST, PROPFIND, PROPPATCH, MKCOL, PUT, DELETE, COPY, MOVE, LOCK, UNLOCK");
+                    response.Headers.Add("MS-Author-Via", "DAV");
+                    response.Headers.Add("DAV", "1,2,3");
+                    response.StatusCode = 200;
+                    response.Close();
+                }
+                else if (request.HttpMethod == "HEAD")
+                {
+                    //using (UNCAccessWithCredentials unc = new UNCAccessWithCredentials())
+                    //{
+                    //    try
+                    //    {
+                    //        if (unc.NetUseWithCredentials(@"\\10.55.9.77\PDOCS$",
+                    //                                  "public.tnnas.PDOCS",
+                    //                                  @"cminl",
+                    //                                  "P@ssw0rd20221209055"))
+                    //        {
+                    //            var path1 = string.Format(@"\\10.55.9.77\PDOCS$\TN002\{0}\DOCUMENTS\{1}\{2}", dept, dept, fileid);
+                    //            if (!File.Exists(path1))
+                    //            {
+                    //                response.StatusCode = (int)HttpStatusCode.NotFound;
+                    //                return;
+                    //            }
+                    //            else
+                    //            {
+                    //                // Get file info
+                    //                FileInfo fileInfo = new FileInfo(path1);
+
+                    //                response.ContentLength64 = fileInfo.Length;
+                    //                response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                    //                string etag = fileInfo.Length.ToString();
+                    //                response.AddHeader("ETag", "\"" + etag + "\"");
+                    //                response.Headers.Add(HttpResponseHeader.LastModified, fileInfo.LastWriteTimeUtc.ToString("r"));
+                    //                response.StatusCode = (int)HttpStatusCode.OK;
+                    //                response.Close();
+                    //            }
+                    //        }
+                    //        else
+                    //        {
+
+                    //        }
+                    //    }
+                    //    catch (Exception ex)
+                    //    {
+
+                    //    }
+
+                    //}
+                }
+                else if (context.Request.HttpMethod == "LOCK")
+                {
+                    string requestUrl = request.Url.ToString();
+                    string lockToken = Guid.NewGuid().ToString();
+
+                    // Check if the resource is already locked
+                    if (IsLocked(requestUrl))
+                    {
+                        // Resource is already locked, return 423 Locked status code
+                        response.StatusCode = (int)HttpStatusCode.Locked;
+                        response.Close();
+                        return;
+                    }
+
+                    //// Parse the lock request XML
+                    //XmlDocument xmlDoc = new XmlDocument();
+                    //xmlDoc.Load(context.Request.InputStream);
+                    //XmlNamespaceManager namespaceManager = new XmlNamespaceManager(xmlDoc.NameTable);
+                    //namespaceManager.AddNamespace("D", "DAV:");
+                    //XmlNode lockScopeNode = xmlDoc.SelectSingleNode("//D:lockscope/D:exclusive", namespaceManager);
+                    //XmlNode lockTypeNode = xmlDoc.SelectSingleNode("//D:locktype/D:write", namespaceManager);
+                    //XmlNode ownerNode = xmlDoc.SelectSingleNode("//D:owner", namespaceManager);
+
+                    //// Set the lock timeout
+                    //int lockTimeout = 0;
+                    //string timeoutHeader = context.Request.Headers.Get("Timeout");
+                    //if (!string.IsNullOrEmpty(timeoutHeader) && timeoutHeader.StartsWith("Second-"))
+                    //{
+                    //    int.TryParse(timeoutHeader.Substring(7), out lockTimeout);
+                    //}
+
+                    // Create the lock info
+                    //LockInfo lockInfo = new LockInfo();
+                    //lockInfo.ResourceUrl = requestUrl;
+                    //lockInfo.LockScope = lockScopeNode != null ? LockScope.Exclusive : LockScope.Shared;
+                    //lockInfo.LockType = lockTypeNode != null ? LockType.Write : LockType.Read;
+                    //lockInfo.Owner = ownerNode != null ? ownerNode.InnerText : null;
+                    //lockInfo.Timeout = lockTimeout;
+                    //lockInfo.LockToken = lockToken;
+                    //lockInfo.LockTime = DateTime.UtcNow;
+
+                    //// Add the lock to the locked resources dictionary
+                    //_lockedResources.Add(requestUrl, lockInfo);
+
+                    // Set the lock token header in the response
+                    response.AddHeader("Lock-Token", $"<urn:uuid:{lockToken}>");
+
+                    // Return 200 OK status code
+                    response.StatusCode = (int)HttpStatusCode.OK;
+                    response.Close();
+
+                }
+                else if (context.Request.HttpMethod == "UNLOCK")
+                {
+                    string lockToken = context.Request.Headers["Lock-Token"];
+
+                    if (string.IsNullOrEmpty(lockToken))
+                    {
+                        context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                        return;
+                    }
+
+                    // TODO: Validate the lock token and perform any necessary unlocking logic
+
+                    context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+                    response.Close();
+                }
+                else if (context.Request.HttpMethod == "PROPFIND")
+                {
+                    // Get the path requested by the client
+                    string path = request.Url.LocalPath;
+
+                    if (path.Contains('.'))
+                    {
+
+                        path = directory + path.TrimStart('/').Replace("/", "\\");
+                    }
+                    else
+                    {
+                        if (path.StartsWith("/"))
+                            path = Path.Combine(directory, path.Replace("/", ""));
+                    }
+
+                    // Check if the path is a directory
+                    bool isDir = Directory.Exists(path);
+                    bool isFile = false;
+                    // If the path is not a directory, check if it is a file
+                    if (!isDir)
+                    {
+                        isFile = File.Exists(path);
+                    }
+
+                    // If the path is neither a directory nor a file, return 404 Not Found
+                    if (!isDir && !isFile)
+                    {
+                        response.StatusCode = (int)HttpStatusCode.NotFound;
+                        return;
+                    }
+
+
+                    var xMultiStatus = new XElement(DavNs + "multistatus");
+                    var xml = new XDocument(xMultiStatus);
+
+                    // Add a response element for the directory or file
+                    //xml.Root.Add(CreateResponseElement(path, isDir));
+
+                    // If the path is a directory, add response elements for the directory's files
+                    if (isDir)
+                    {
+                        string[] files = Directory.GetFiles(path);
+                        string[] dirs = Directory.GetDirectories(path);
+                        foreach (string file in files)
+                        {
+                            xml.Root.Add(CreateResponseElement(file, false));
+                        }
+                        foreach (string dir in dirs)
+                        {
+                            xml.Root.Add(CreateResponseElement(dir, true));
+                        }
+                    }
+                    if (isFile)
+                    {
+                        xml.Root.Add(CreateResponseElement(path, false));
+                    }
+                    //  byte[] bodyBytes = Encoding.UTF8.GetBytes(xml.ToString());
+
+                    //                   var xml2= "" +
+                    //"<D:multistatus xmlns:D=\"DAV:\">" +
+                    //   "<D:response>" +
+                    //      "<D:href>/file.txt</D:href>" +
+                    //      "<D:propstat>" +
+                    //        "<D:prop>" +
+                    //          "<D:displayname></D:displayname>" +
+                    //          "<D:getlastmodified>Mon, 24 Apr 2023 10:58:36 GMT</D:getlastmodified>" +
+                    //          "<D:getcontentlength>0</D:getcontentlength>" +
+                    //          "<D:getcontenttype>httpd/unix-directory</D:getcontenttype>" +
+                    //          "<D:resourcetype>" +
+                    //            "<D:collection />" +
+                    //          "</D:resourcetype>" +
+                    //        "</D:prop>" +
+                    //        "<D:status>HTTP/1.1 200 OK</D:status>" +
+                    //      "</D:propstat>" +
+                    //    "</D:response>" +
+                    //  "</D:multistatus>";
+                    //string xml2 = "" +
+                    //     "<D:multistatus xmlns:D=\"DAV:\">" +
+                    //     "<D:response>" +
+                    //     "<D:href>/file.txt</D:href>" +
+                    //     "<D:propstat>" +
+                    //     "<D:prop>" +
+                    //     "<D:getlastmodified>Wed, 23 Aug 2017 09:23:47 GMT</D:getlastmodified>" +
+                    //     "<D:getetag>\"4c4e4f4e455253454c4c4f57\"</D:getetag>" +
+                    //     "<D:getcontenttype>text/plain</D:getcontenttype>" +
+                    //     "<D:getcontentlength>12</D:getcontentlength>" +
+                    //     "</D:prop>" +
+                    //     "<D:status>HTTP/1.1 200 OK</D:status>" +
+                    //     "</D:propstat>" +
+                    //     "</D:response>" +
+                    //     "</D:multistatus>";
+                    byte[] bodyBytes = Encoding.UTF8.GetBytes(xml.ToString());
+
+                    response.StatusCode = 207; // Multi-Status
+                    response.ContentType = "text/xml";
+                    response.ContentLength64 = bodyBytes.Length;
+                    response.OutputStream.Write(bodyBytes, 0, bodyBytes.Length);
+                    //response.Close();
+
+                    // Set the response headers
+                    //response.ContentType = "text/xml; charset=utf-8";
+                    //response.ContentEncoding = Encoding.UTF8;
+                    //response.StatusCode = (int)HttpStatusCode.MultiStatus;
+
+                    //// Write the XML response to the output stream
+                    //using (Stream output = response.OutputStream)
+                    //{
+                    //    byte[] buffer = Encoding.UTF8.GetBytes(xml.ToString());
+                    //    output.Write(buffer, 0, buffer.Length);
+                    //}
+
+
+
+
+
+                    //string path = context.Request.Url.LocalPath;
+                    //filePath = directory + path.Substring(1);
+
+
+                    //string body = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    //     "<D:multistatus xmlns:D=\"DAV:\">" +
+                    //     "<D:response>" +
+                    //     "<D:href>/file.txt</D:href>" +
+                    //     "<D:propstat>" +
+                    //     "<D:prop>" +
+                    //     "<D:getlastmodified>Wed, 23 Aug 2017 09:23:47 GMT</D:getlastmodified>" +
+                    //     "<D:getetag>\"4c4e4f4e455253454c4c4f57\"</D:getetag>" +
+                    //     "<D:getcontenttype>text/plain</D:getcontenttype>" +
+                    //     "<D:getcontentlength>12</D:getcontentlength>" +
+                    //     "</D:prop>" +
+                    //     "<D:status>HTTP/1.1 200 OK</D:status>" +
+                    //     "</D:propstat>" +
+                    //     "</D:response>" +
+                    //     "</D:multistatus>";
+
+                    //byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
+
+                    //response.StatusCode = 207; // Multi-Status
+                    //response.ContentType = "text/xml";
+                    //response.ContentLength64 = bodyBytes.Length;
+                    //response.OutputStream.Write(bodyBytes, 0, bodyBytes.Length);
+                    //response.Close();
+
+                    //string depthString = request.Headers["Depth"];
+                    //int depth = depthString == "infinity" ? int.MaxValue : int.Parse(depthString);
+
+                    ////if (!Directory.Exists(url))
+                    ////{
+                    ////    response.StatusCode = 404; // Not Found
+                    ////    return;
+                    ////}
+
+                    //XNamespace davNs = "DAV:";
+                    //XDocument xml = new XDocument(
+                    //    new XElement(davNs + "multistatus",
+                    //        new XElement(davNs + "response",
+                    //            CreateResponseElement(xml, new DirectoryInfo(url)),
+                    //            new XElement(davNs + "propstat",
+                    //                new XElement(davNs + "status", "HTTP/1.1 200 OK"),
+                    //                new XElement(davNs + "prop",
+                    //                    new XElement(davNs + "creationdate"),
+                    //                    new XElement(davNs + "getlastmodified"),
+                    //                    new XElement(davNs + "displayname"),
+                    //                    new XElement(davNs + "getcontenttype"),
+                    //                    new XElement(davNs + "getcontentlength")
+                    //                )
+                    //            )
+                    //        )
+                    //    )
+                    //);
+                    // response.Close();
+                }
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                //else if (context.Request.HttpMethod == "PROPFIND")
+                //{
+                //}
+                else
+                {
+                    response.StatusCode = 405;
+                    response.Close();
+                }
+            }
+        }
+
+
+        //public static readonly string DavNs = "DAV:";
+        //public static readonly string DNs = "D:";
+        private static XElement CreateResponseElement(string path, bool isDir)
+        {
+            string href = path.Replace(directory, "").Replace('\\', '/');
+            string displayName = Path.GetFileName(path);
+
+            XElement response = new XElement(DavNs + "response",
+                new XElement(DavNs + "href", href),
+                new XElement(DavNs + "propstat",
+                    new XElement(DavNs + "prop",
+                        new XElement(DavNs + "displayname", displayName),
+                        new XElement(DavNs + "getlastmodified", File.GetLastWriteTimeUtc(path).ToString("R")),
+                        new XElement(DavNs + "getcontentlength", isDir ? "0" : new FileInfo(path).Length.ToString()),
+                        new XElement(DavNs + "getcontenttype", isDir ? "httpd/unix-directory" : "application/octet-stream"),
+                        new XElement(DavNs + "resourcetype", isDir ? new XElement(DavNs + "collection") : null)),
+                    new XElement(DavNs + "status", "HTTP/1.1 200 OK")));
+
+            return response;
+        }
+
+        static XmlElement CreateElement(XmlElement parent, string name, string ns, string value)
+        {
+            XmlElement element = parent.OwnerDocument.CreateElement(name, ns);
+            element.InnerText = value;
+            return element;
+        }
+        private static XmlElement CreateResponseElement(XmlDocument responseXml, string path)
+        {
+            XmlElement response = responseXml.CreateElement("D:response", "DAV:");
+            XmlElement href = responseXml.CreateElement("D:href", "DAV:");
+            href.InnerText = path;
+            response.AppendChild(href);
+            return response;
+        }
+
+        private static void AddDirectoryProperties(XmlElement response, string path)
+        {
+            DirectoryInfo directory = new DirectoryInfo(path);
+            response.AppendChild(CreateElement(response, "D:resourcetype", "DAV:", "<D:collection/>"));
+            response.AppendChild(CreateElement(response, "D:getlastmodified", "DAV:", directory.LastWriteTimeUtc.ToString("R")));
+            response.AppendChild(CreateElement(response, "D:getcontenttype", "DAV:", "httpd/unix-directory"));
+            response.AppendChild(CreateElement(response, "D:getcontentlength", "DAV:", "0"));
+        }
+
+        private static void AddFileProperties(XmlElement response, string path)
+        {
+            FileInfo file = new FileInfo(path);
+            response.AppendChild(CreateElement(response, "D:resourcetype", "DAV:", ""));
+            response.AppendChild(CreateElement(response, "D:getlastmodified", "DAV:", file.LastWriteTimeUtc.ToString("R")));
+            response.AppendChild(CreateElement(response, "D:getcontenttype", "DAV:", "application/octet-stream"));
+            response.AppendChild(CreateElement(response, "D:getcontentlength", "DAV:", file.Length.ToString()));
+        }
+        //static AuthenticationSchemes AuthenticationSchemeForClient(HttpListenerRequest request)
+        //{
+        //    if (request.Headers["Authorization"] != null && request.Headers["Authorization"].StartsWith("Basic"))
+        //    {
+        //        string credentials = Encoding.ASCII.GetString(Convert.FromBase64String(request.Headers["Authorization"].Substring(6)));
+        //        string[] parts = credentials.Split(':');
+        //        string username = parts[0];
+        //        string password = parts[1];
+
+        //        // Check username and password against database or other authentication method
+        //        if (username == "user1" && password == "pass123")
+        //        {
+        //            return AuthenticationSchemes.Basic;
+        //        }
+        //    }
+
+        //    // No valid credentials found, so return 401 Unauthorized
+        //    HttpListenerResponse response = context.Response;
+        //    response.StatusCode = 401;
+        //    response.AddHeader("WWW-Authenticate", "Basic realm=\"" + listener.Realm + "\"");
+        //    response.OutputStream.Close();
+
+        //    return AuthenticationSchemes.Anonymous;
+        //}
+
+        static bool IsLocked(string path)
+        {
+            return false;
+        }
+
+
+
+        //private void HandlePropfind(HttpListenerContext context)
+        //{
+        //    // Get the requested URL and parse it
+        //    var url = new Uri(context.Request.Url.GetLeftPart(UriPartial.Path));
+        //    var depth = context.Request.Headers["Depth"];
+        //    var infiniteDepthMode = depth == "infinity";
+
+        //    // Create the XML document that will contain the properties
+        //    var doc = new XDocument(new XDeclaration("1.0", "utf-8", "no"));
+        //    var multistatus = new XElement(WebDavXml.Dav + "multistatus");
+        //    doc.Add(multistatus);
+
+        //    // If the URL represents a directory, add its contents to the response
+        //    if (Directory.Exists(url.LocalPath))
+        //    {
+        //        var dirInfo = new DirectoryInfo(url.LocalPath);
+        //        foreach (var subDir in dirInfo.GetDirectories())
+        //        {
+        //            var responseElement = CreateResponseElement(doc, $"{url}/{subDir.Name}/");
+        //            multistatus.Add(responseElement);
+        //        }
+        //        foreach (var file in dirInfo.GetFiles())
+        //        {
+        //            var responseElement = CreateResponseElement(doc, $"{url}/{file.Name}");
+        //            multistatus.Add(responseElement);
+        //        }
+        //    }
+        //    else if (File.Exists(url.LocalPath))
+        //    {
+        //        // If the URL represents a file, add its properties to the response
+        //        var responseElement = CreateResponseElement(doc, url.ToString());
+        //        multistatus.Add(responseElement);
+        //    }
+
+        //    // Write the response to the output stream
+        //    var responseBytes = Encoding.UTF8.GetBytes(doc.ToString());
+        //    context.Response.ContentLength64 = responseBytes.Length;
+        //    context.Response.ContentType = "text/xml";
+        //    context.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
+        //    context.Response.OutputStream.Close();
+        //}
+
+        //private XElement CreateResponseElement(XDocument doc, string href)
+        //{
+        //    var response = new XElement(WebDavXml.Dav + "response",
+        //        new XElement(WebDavXml.Dav + "href", href),
+        //        new XElement(WebDavXml.Dav + "propstat",
+        //            new XElement(WebDavXml.Dav + "status", "HTTP/1.1 200 OK"),
+        //            new XElement(WebDavXml.Dav + "prop",
+        //                new XElement(WebDavXml.Dav + "creationdate", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ")),
+        //                new XElement(WebDavXml.Dav + "getlastmodified", DateTime.Now.ToString("R")),
+        //                new XElement(WebDavXml.Dav + "getcontenttype", "application/octet-stream"),
+        //                new XElement(WebDavXml.Dav + "getcontentlength", "0")
+        //            )
+        //        )
+        //    );
+        //    return response;
+        //}
+
+    }
+    public class info
+    {
+        public string type { get; set; }
+        public string href { get; set; }
+        public string getlastmodified { get; set; }
+        public string getcontenttype { get; set; }
+        public string getcontentlength { get; set; }
+        public string status { get; set; }
+
+        public string physicpath { get; set; }
+
+        public string mountpath { get; set; }
+
+        public string fileid { get; set; }
+
+        public string filename { get; set; }
+    }
+
+
+    public class CurrentDir
+    {
+
+        public string baseDir { get; set; }
+
+        public string parentpath { get; set; }
+        public List<info> infos { get; set; }
+
+        public int depth { get; set; }
+    }
+}

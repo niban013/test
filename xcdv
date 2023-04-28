@@ -1,4 +1,3 @@
-
 using Microsoft.AspNetCore.StaticFiles;
 using System;
 using System.Collections.Generic;
@@ -6,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Web;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -13,7 +13,8 @@ namespace webdavconsole
 {
     class Program
     {
-        public static readonly string baseUri = "http://localhost:19080/";
+        public static readonly string baseUri = "http://127.0.0.1:19080/";
+        public static readonly string baseUri2 = "http://localhost:19080/";
         public static readonly string directory = @"C:\WebDavRoot\vr\";
         public static readonly XNamespace DavNs = "DAV:";
         public static readonly string DavNsPrefix = "D";
@@ -22,8 +23,11 @@ namespace webdavconsole
         static void Main(string[] args)
         {
 
-            HttpListener listener = new HttpListener();
+            HttpListener listener = new HttpListener(); 
+            listener.TimeoutManager.IdleConnection = TimeSpan.FromSeconds(300);
             listener.Prefixes.Add(baseUri);
+            listener.Prefixes.Add(baseUri2); 
+
             //  listener.AuthenticationSchemes = AuthenticationSchemes.Basic;
             //string username = "advtek09.jn";
             //string password = "1qaz2wsxC";
@@ -44,7 +48,7 @@ namespace webdavconsole
                     HttpListenerContext context = listener.GetContext();
                     HttpListenerRequest request = context.Request;
                     HttpListenerResponse response = context.Response;
-
+                
                     Console.WriteLine("Request: {0} {1}", request.HttpMethod, request.RawUrl);
                     //string fullPath = rootPath + request.Url.LocalPath;
 
@@ -77,62 +81,78 @@ namespace webdavconsole
                     }
                     else if (request.HttpMethod == "PUT")
                     {
+                     
                         string overwriteHeader = request.Headers.Get("Overwrite");
                         string path = request.Url.LocalPath;
                         path = path.TrimStart('/').Replace("/", "\\");
                         filePath = Path.Combine(directory, path);
-                        bool fileExists = File.Exists(filePath);
-                        if (fileExists && overwriteHeader == "T")
+                        // Write the new file
+                        using (Stream input = request.InputStream)
                         {
-                            // Delete the existing file
-                            File.Delete(filePath);
-
-                            // Write the new file
-                            using (Stream input = request.InputStream)
+                            using (FileStream output = File.Create(filePath))
                             {
-                                using (FileStream output = File.Create(filePath))
-                                {
-                                    input.CopyTo(output);
-                                }
+                                input.CopyTo(output);
                             }
-                            //using (FileStream fs = new FileStream(filePath, FileMode.Create))
-                            //{
-                            //    request.InputStream.CopyTo(fs);
-                            //    response.StatusCode = (int)HttpStatusCode.Created;
-                            //}
-                            // Send a success response
-                            response.StatusCode = (int)HttpStatusCode.OK;
-                            response.StatusDescription = "OK";
-                        }
-                        else if (fileExists && overwriteHeader == "F")
-                        {
-                            // Send a 412 Precondition Failed response
-                            response.StatusCode = (int)HttpStatusCode.PreconditionFailed;
-                            response.StatusDescription = "Precondition Failed";
-                        }
-                        else if (fileExists && overwriteHeader != null)
-                        {
-                            // Invalid value for Overwrite header
-                            response.StatusCode = (int)HttpStatusCode.BadRequest;
-                            response.StatusDescription = "Bad Request";
-                        }
-                        else
-                        {
-                            // Write the new file
-                            using (Stream input = request.InputStream)
-                            {
-                                using (FileStream output = File.Create(filePath))
-                                {
-                                    input.CopyTo(output);
-                                }
-                            }
-
-                            // Send a success response
-                            response.StatusCode = (int)HttpStatusCode.OK;
-                            response.StatusDescription = "OK";
                         }
 
-                      
+                        // Send a success response
+                        response.StatusCode = (int)HttpStatusCode.OK;
+                        response.StatusDescription = "OK";
+                        //string path = request.Url.LocalPath;
+                        //path = path.TrimStart('/').Replace("/", "\\");
+                        //filePath = Path.Combine(directory, path);
+                        //bool fileExists = File.Exists(filePath);
+                        //if (fileExists && overwriteHeader == "T")
+                        //{
+                        //    // Delete the existing file
+                        //    File.Delete(filePath);
+
+                        //    // Write the new file
+                        //    using (Stream input = request.InputStream)
+                        //    {
+                        //        using (FileStream output = File.Create(filePath))
+                        //        {
+                        //            input.CopyTo(output);
+                        //        }
+                        //    }
+                        //    //using (FileStream fs = new FileStream(filePath, FileMode.Create))
+                        //    //{
+                        //    //    request.InputStream.CopyTo(fs);
+                        //    //    response.StatusCode = (int)HttpStatusCode.Created;
+                        //    //}
+                        //    // Send a success response
+                        //    response.StatusCode = (int)HttpStatusCode.OK;
+                        //    response.StatusDescription = "OK";
+                        //}
+                        //else if (fileExists && overwriteHeader == "F")
+                        //{
+                        //    // Send a 412 Precondition Failed response
+                        //    response.StatusCode = (int)HttpStatusCode.PreconditionFailed;
+                        //    response.StatusDescription = "Precondition Failed";
+                        //}
+                        //else if (fileExists && overwriteHeader != null)
+                        //{
+                        //    // Invalid value for Overwrite header
+                        //    response.StatusCode = (int)HttpStatusCode.BadRequest;
+                        //    response.StatusDescription = "Bad Request";
+                        //}
+                        //else
+                        //{
+                        //    // Write the new file
+                        //    using (Stream input = request.InputStream)
+                        //    {
+                        //        using (FileStream output = File.Create(filePath))
+                        //        {
+                        //            input.CopyTo(output);
+                        //        }
+                        //    }
+
+                        //    // Send a success response
+                        //    response.StatusCode = (int)HttpStatusCode.OK;
+                        //    response.StatusDescription = "OK";
+                        //}
+
+
                         response.Close();
 
                         ////string filePath = request.Url.LocalPath.Substring(1);
@@ -248,7 +268,12 @@ namespace webdavconsole
                     else if (context.Request.HttpMethod == "DELETE")
                     {
                         filePath = Path.Combine(directory, request.Url.LocalPath.TrimStart('/').Replace("/", "\\"));
-                        if (File.Exists(filePath))
+                        if (Directory.Exists(filePath))
+                        {
+                            var dir = new DirectoryInfo(filePath);
+                            dir.Delete(true);
+                        } 
+                        else if (File.Exists(filePath))
                         {
                             try
                             {
@@ -311,7 +336,7 @@ namespace webdavconsole
                         response.Close();
                     }
                     else if (context.Request.HttpMethod == "MKCOL")
-                    { 
+                    {
                         string newCollection = Path.Combine(directory, request.Url.LocalPath.TrimStart('/').Replace("/", "\\"));
                         // Create the new directory
                         System.IO.Directory.CreateDirectory(newCollection);
@@ -324,7 +349,9 @@ namespace webdavconsole
                     {
 
                         string sourceFilePath = Path.Combine(directory, request.Url.LocalPath.TrimStart('/').Replace("/", "\\"));
-                        string destinationFilePath = Path.Combine(directory, request.Headers["Destination"].Replace(request.Url.Scheme + "://" + request.Url.Host + ":" + request.Url.Port, "").TrimStart('/').Replace("/", "\\"));
+
+                        string destination = HttpUtility.UrlDecode(request.Headers["Destination"]).Replace(request.Url.Scheme + "://" + request.Url.Host + ":" + request.Url.Port, "").TrimStart('/').Replace("/", "\\");
+                        string destinationFilePath = Path.Combine(directory, destination);
 
                         // Check if the destination file already exists
                         if (File.Exists(destinationFilePath))
@@ -349,18 +376,106 @@ namespace webdavconsole
 
                     }
                     else if (context.Request.HttpMethod == "PROPPATCH")
-                    { 
-                    
+                    {
+                        //string resourcePath = GetResourcePath(context);
+
+                        //// Read the PROPPATCH XML payload from the request body
+                        //XElement propPatchXml = ReadRequestBodyXml(context.Request);
+
+                        //// Create a new dictionary to store the updated properties
+                        //Dictionary<string, string> updatedProps = new Dictionary<string, string>();
+
+                        //// Process each <prop> element in the PROPPATCH request
+                        //foreach (XElement propElement in propPatchXml.Elements(WebDavXmlNamespace + "prop"))
+                        //{
+                        //    // Process each child element of the <prop> element
+                        //    foreach (XElement propChildElement in propElement.Elements())
+                        //    {
+                        //        // Get the name and value of the property to be updated
+                        //        string propName = propChildElement.Name.LocalName;
+                        //        string propValue = propChildElement.Value;
+
+                        //        // Update the property in the store
+                        //        UpdateProperty(resourcePath, propName, propValue);
+
+                        //        // Add the updated property to the dictionary
+                        //        updatedProps[propName] = propValue;
+                        //    }
+                        //}
+
+                        //// Generate the PROPPATCH response XML
+                        //XElement propPatchResponseXml = new XElement(WebDavXmlNamespace + "multistatus",
+                        //    new XElement(WebDavXmlNamespace + "response",
+                        //        new XElement(WebDavXmlNamespace + "href", context.Request.Url),
+                        //        new XElement(WebDavXmlNamespace + "propstat",
+                        //            new XElement(WebDavXmlNamespace + "prop",
+                        //                from prop in updatedProps
+                        //                select new XElement(WebDavXmlNamespace + prop.Key, prop.Value)),
+                        //            new XElement(WebDavXmlNamespace + "status", "HTTP/1.1 200 OK"))));
+
                     }
                     else if (context.Request.HttpMethod == "PROPFIND")
                     {
-                        if (context.Request.Headers["Depth"] == "0")
-                        {
-                            //response.StatusCode = (int)HttpStatusCode.Unauthorized;
-                            //response.Close();
-                        }
+                        //if (context.Request.Headers["Depth"] == "0")
+                        //{
+                        //    //response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                        //    //response.Close();
+                        //}
                         // Get the path requested by the client
+                       
+
+
+                        var xMultiStatus = new XElement(DavNs + "multistatus");
+                        var xml = new XDocument(new XDeclaration("1.0", "utf-8", "yes"),xMultiStatus);
+                      //  xml.Declaration = new XDeclaration("1.0", "utf-8", null);
+                       
                         string path = request.Url.LocalPath;
+                        path = directory + path.TrimStart('/').Replace("/", "\\");
+                        bool isDir = Directory.Exists(path);
+                        bool isFile = File.Exists(path);
+
+                        if (!isDir && !isFile)
+                        {
+                        }
+                        else
+                        {
+                            string[] dirs = new string[] { };
+                            List<FileInfo> files = new List<FileInfo>();
+                            if (isDir)
+                            { 
+                                dirs = Directory.GetDirectories(path);
+                               
+                                foreach (string dir in dirs)
+                                {
+                                    xml.Root.Add(CreateResponseElement(dir, true));
+                                }
+                                files = new DirectoryInfo(path).GetFiles().Where(f => !f.Attributes.HasFlag(FileAttributes.Hidden)).ToList();
+                             
+                                foreach (var file in files)
+                                {
+                                    xml.Root.Add(CreateResponseElement(file.FullName, false));
+                                }
+                                if (dirs.Length > 0 || files.Count() > 0)
+                                {
+                                    if (context.Request.Headers["Depth"] != "0")// && path != directory)
+                                    {
+                                        xml.Root.AddFirst(CreateResponseElement(path, true));
+                                    } 
+                                }
+                                if (files.Count() == 0 && dirs.Length == 0)
+                                {
+                                    xml.Root.Add(CreateResponseElement(path, true, true));
+                                }
+                            }
+                            else
+                            {
+                                xml.Root.Add(CreateResponseElement(path, false));
+                            }
+                        } 
+                        //DirectoryInfo directory = new DirectoryInfo(path);
+                        //FileInfo files = new FileInfo(path);
+                        //if()
+
 
                         //if (path == "/")
                         //{
@@ -369,20 +484,20 @@ namespace webdavconsole
                         //}
                         //else
                         //{
-                        if (path == "/")
-                        {
-                            path = directory + path.TrimStart('/').Replace("/", "\\");
-                        }
-                        else if (path.Contains('.'))
-                        {
-                            path = Path.Combine(directory, Path.GetDirectoryName(path.TrimStart('/').Replace("/", "\\")));
+                        //if (path == "/")
+                        //{
+                        //    path = directory + path.TrimStart('/').Replace("/", "\\");
+                        //}
+                        //else if (path.Contains('.'))
+                        //{
+                        //    path = Path.Combine(directory, Path.GetDirectoryName(path.TrimStart('/').Replace("/", "\\")));
 
-                            //directory;// + path.TrimStart('/').Replace("/", "\\");
-                        }
-                        else if (path.StartsWith("/"))
-                        {
-                            path = directory + path.TrimStart('/').Replace("/", "\\");
-                        }
+                        //    //directory;// + path.TrimStart('/').Replace("/", "\\");
+                        //}
+                        //else if (path.StartsWith("/"))
+                        //{
+                        //    path = directory + path.TrimStart('/').Replace("/", "\\");
+                        //}
 
                         //else
                         //{
@@ -394,60 +509,63 @@ namespace webdavconsole
                         //}
 
                         // Check if the path is a directory
-                        bool isDir = Directory.Exists(path);
-                        bool isFile = false;
-                        // If the path is not a directory, check if it is a file
-                        if (!isDir)
-                        {
-                            isFile = File.Exists(path);
-                        }
+                        //bool isDir = Directory.Exists(path);
+                        //bool isFile = false;
+                        //// If the path is not a directory, check if it is a file
+                        //if (!isDir)
+                        //{
+                        //    isFile = File.Exists(path);
+                        //    response.StatusCode = (int)HttpStatusCode.Created;
+                        //    return;
+                        //}
 
-                        // If the path is neither a directory nor a file, return 404 Not Found
-                        if (!isDir && !isFile)
-                        {
-                            response.StatusCode = (int)HttpStatusCode.NotFound;
-                            return;
-                        }
+                        //// If the path is neither a directory nor a file, return 404 Not Found
+                        //if (!isDir && !isFile)
+                        //{
+                        //    response.StatusCode = (int)HttpStatusCode.NotFound;
+                        //    return;
+                        //}
+                        //XmlDocument xmlDoc = new XmlDocument(); 
+                        //XmlNode node = xmlDoc.CreateXmlDeclaration("1.0", "utf-8", "");
+                        //xmlDoc.AppendChild(node); 
 
-
-                        var xMultiStatus = new XElement(DavNs + "multistatus");
-                        var xml = new XDocument(xMultiStatus);
 
                         // Add a response element for the directory or file
                         //xml.Root.Add(CreateResponseElement(path, isDir));
 
                         // If the path is a directory, add response elements for the directory's files
-                        if (isDir)
-                        {
-                            //string[] files = Directory.GetFiles(path);
-                            DirectoryInfo directory = new DirectoryInfo(path);
-                            var files = directory.GetFiles().Where(f => !f.Attributes.HasFlag(FileAttributes.Hidden));
+                        //if (isDir)
+                        //{
+                        //    //string[] files = Directory.GetFiles(path);
+                        //    DirectoryInfo directory = new DirectoryInfo(path);
+                        //    var files = directory.GetFiles().Where(f => !f.Attributes.HasFlag(FileAttributes.Hidden));
 
-                            // var filtered = files.Where(f => !IsHidden(File.GetAttributes(f).ToString()));
+                        //    // var filtered = files.Where(f => !IsHidden(File.GetAttributes(f).ToString()));
 
-                            string[] dirs = Directory.GetDirectories(path);
-                            if (files.Count() > 0 || dirs.Length>0)
-                            {
-                                xml.Root.Add(CreateResponseElement(path, true, false));
-                            }
-                            foreach (var file in files)
-                            {
-                                xml.Root.Add(CreateResponseElement(file.FullName, false));
-                            }
-                            foreach (string dir in dirs)
-                            {
-                                xml.Root.Add(CreateResponseElement(dir, true));
-                            }
-                            if (files.Count() == 0 && dirs.Length == 0)
-                            {
-                                xml.Root.Add(CreateResponseElement(path, true, true));
-                            }
-                        }
-                        if (isFile)
-                        {
-                            xml.Root.Add(CreateResponseElement(path, false));
-                        }
-
+                        //    string[] dirs = Directory.GetDirectories(path);
+                        //    if (files.Count() > 0 || dirs.Length > 0)
+                        //    {
+                        //        xml.Root.Add(CreateResponseElement(path, true, false));
+                        //    }
+                        //    foreach (var file in files)
+                        //    {
+                        //        xml.Root.Add(CreateResponseElement(file.FullName, false));
+                        //    }
+                        //    foreach (string dir in dirs)
+                        //    {
+                        //        xml.Root.Add(CreateResponseElement(dir, true));
+                        //    }
+                        //    if (files.Count() == 0 && dirs.Length == 0)
+                        //    {
+                        //        xml.Root.Add(CreateResponseElement(path, true, true));
+                        //    }
+                        //}
+                        //if (isFile)
+                        //{
+                        //    xml.Root.Add(CreateResponseElement(path, false));
+                        //}
+                     
+                   //     var _xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" + xml.ToString();
                         byte[] bodyBytes = Encoding.UTF8.GetBytes(xml.ToString());
                         response.StatusCode = 207; // Multi-Status
                         response.ContentType = "text/xml";

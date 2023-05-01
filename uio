@@ -1,0 +1,357 @@
+using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
+using System.Xml.Linq;
+
+namespace webdavapi.Controllers
+{
+    //[Authorize(AuthenticationSchemes = NegotiateDefaults.AuthenticationScheme)]
+    [Route("{**path}")]
+   
+    public class WebDavController : ControllerBase
+    {
+        //public static readonly string baseUri = "http://127.0.0.1:10009/";
+        public static readonly string directory = @"C:\WebDavRoot\vr\";
+        public static readonly XNamespace DavNs = "DAV:";
+        public static readonly string DavNsPrefix = "D";
+        private readonly ILogger<WebDavController> _logger;
+
+        public WebDavController( ILogger<WebDavController> logger)
+        {
+        
+            _logger = logger;
+        }
+
+        [HttpGet]
+        public async Task GetAsync(string? path2, CancellationToken cancellationToken = default)
+        {
+            string path = Request.Path;
+            path = path.TrimStart('/').Replace("/", "\\");
+            var filePath = Path.Combine(directory, path);
+
+            if (System.IO.File.Exists(filePath))
+            {
+                Response.ContentType = GetMimeType(filePath);
+                Response.ContentLength = new FileInfo(filePath).Length;
+
+                using (var stream = new FileInfo(filePath).OpenRead())
+                {
+                   await stream.CopyToAsync(Response.Body);
+                }
+               
+                Response.StatusCode = (int)HttpStatusCode.OK;
+            }
+
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("PROPFIND")]
+        public async Task<string> PropfindAsync(string? path2, CancellationToken cancellationToken)
+        {
+            var xMultiStatus = new XElement(DavNs + "multistatus");
+            var xml = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), xMultiStatus);
+            //  xml.Declaration = new XDeclaration("1.0", "utf-8", null);
+            path2 = path2 is null ? Request.Path : path2;
+            string path = GetPath(path2);
+            path = directory + path.TrimStart('/').Replace("/", "\\");
+            bool isDir = Directory.Exists(path);
+            bool isFile = System.IO.File.Exists(path);
+
+            if (!isDir && !isFile)
+            {
+            }
+            else
+            {
+                string[] dirs = new string[] { };
+                List<FileInfo> files = new List<FileInfo>();
+                if (isDir)
+                {
+                    dirs = Directory.GetDirectories(path);
+
+                    foreach (string dir in dirs)
+                    {
+                        xml.Root.Add(CreateResponseElement(Request, dir, true));
+                    }
+                    files = new DirectoryInfo(path).GetFiles().Where(f => !f.Attributes.HasFlag(FileAttributes.Hidden)).ToList();
+
+                    foreach (var file in files)
+                    {
+                        xml.Root.Add(CreateResponseElement(Request, file.FullName, false));
+                    }
+                    if (dirs.Length > 0 || files.Count() > 0)
+                    {
+                        if (Request.Headers["Depth"] != "0")// && path != directory)
+                        {
+                            xml.Root.AddFirst(CreateResponseElement(Request, path, true));
+                        }
+                    }
+                    if (files.Count() == 0 && dirs.Length == 0)
+                    {
+                        xml.Root.Add(CreateResponseElement(Request, path, true, true));
+                    }
+                }
+                else
+                {
+                    xml.Root.Add(CreateResponseElement(Request,path, false));
+                }
+            }
+            Response.StatusCode = (int)HttpStatusCode.MultiStatus;
+            return xml.ToString();
+        }
+        private static XElement CreateResponseElement(HttpRequest request,string path, bool isDir, bool blast = false)
+        {
+            string href = request.Scheme + "://" + request.Host.Host + ":" + request.Host.Port+"/"+path.Replace(directory, "").Replace('\\', '/');
+            string displayName = Path.GetFileName(path);
+            XElement response = null;
+
+            if (blast)
+            {
+                response = new XElement(DavNs + "response",
+                   new XElement(DavNs + "href", href),
+                   new XElement(DavNs + "propstat",
+                       new XElement(DavNs + "prop",
+                           new XElement(DavNs + "displayname", ""),
+                           new XElement(DavNs + "getlastmodified", ""),
+                           new XElement(DavNs + "getlastaccessed", ""),
+                           new XElement(DavNs + "creationdate", ""),
+                           new XElement(DavNs + "getcontentlength", "0"),
+                           new XElement(DavNs + "getcontenttype", ""),
+                           new XElement(DavNs + "resourcetype", "")),
+                       new XElement(DavNs + "status", "HTTP/1.1 200 OK"))
+                   );
+            }
+            else
+            {
+                response = new XElement(DavNs + "response",
+                    new XElement(DavNs + "href", href),
+                    new XElement(DavNs + "propstat",
+                        new XElement(DavNs + "prop",
+                            new XElement(DavNs + "displayname", displayName),
+                            new XElement(DavNs + "getlastmodified", System.IO.File.GetLastWriteTimeUtc(path).ToString("R")),
+                            new XElement(DavNs + "getlastaccessed", System.IO.File.GetLastAccessTimeUtc(path).ToString("R")),
+                            new XElement(DavNs + "creationdate", System.IO.File.GetCreationTimeUtc(path).ToString("R")),
+                            new XElement(DavNs + "getcontentlength", isDir ? "0" : new FileInfo(path).Length.ToString()),
+                            new XElement(DavNs + "getcontenttype", isDir ? "httpd/unix-directory" : GetMimeType(path)),
+                            new XElement(DavNs + "resourcetype", isDir ? new XElement(DavNs + "collection") : null)),
+                        new XElement(DavNs + "status", "HTTP/1.1 200 OK")));
+
+            }
+            return response;
+        }
+
+        public static string GetMimeType(string fileName)
+        {
+            var provider = new FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(fileName, out string mimeType))
+            {
+                mimeType = "application/octet-stream";
+            }
+            return mimeType;
+        }
+        [HttpHead]
+        public ActionResult Head(string? path)
+        {
+            string head = null!;
+
+            if (head != null)
+            {
+                Response.Headers.Add("Last-Modified", DateTime.Now.ToString());
+                return Ok();
+            }
+            else
+                return NotFound();
+        }
+        //
+        [HttpOptions]
+        public ActionResult Options(string? path)
+        {
+            //var methods = new string[]
+            //{
+            //    "OPTIONS", "GET", "HEAD", "PROPFIND", "MKCOL", "PUT", "DELETE", "COPY", "MOVE", "LOCK", "UNLOCK", "PROPPATCH"
+            //};
+
+            //Response.Headers.Add("Allow", String.Join(',', methods));
+            //Response.Headers.Add("DAV", "1,2,extend");
+            Response.Headers.Add("Allow", "OPTIONS, TRACE, GET, HEAD, POST, COPY, PROPFIND, DELETE, PUT,MOVE, PROPPATCH, MKCOL, LOCK, UNLOCK");
+            Response.Headers.Add("Public", "OPTIONS, TRACE, GET, HEAD, POST, PROPFIND, PROPPATCH, MKCOL, PUT, DELETE, COPY, MOVE, LOCK, UNLOCK");
+            Response.Headers.Add("MS-Author-Via", "DAV");
+            Response.Headers.Add("DAV", "1,2,3");
+            return Ok();
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Delete(string? path)
+        {
+            var filePath = Path.Combine(directory, Request.Path.ToString().TrimStart('/').Replace("/", "\\"));
+            if (Directory.Exists(filePath))
+            {
+                var dir = new DirectoryInfo(filePath);
+                dir.Delete(true);
+                return StatusCode((int)HttpStatusCode.OK);
+            }
+            else if (System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    System.IO.File.Delete(filePath);
+                    return StatusCode((int)HttpStatusCode.OK);
+                }
+                catch (Exception)
+                {
+                    return StatusCode((int)HttpStatusCode.InternalServerError);
+                   // Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                }
+            }
+            else
+            {
+                return StatusCode((int)HttpStatusCode.NotFound);
+                //response.StatusCode = (int)HttpStatusCode.NotFound;
+            }
+          //  return Ok();
+        }
+
+        [HttpPut]
+        [DisableRequestSizeLimit]
+        public async Task<ActionResult> PutAsync(string? path2, CancellationToken cancellationToken)
+        {
+            //var contentLength = Request.ContentLength ?? 0;
+
+            //if (contentLength == 0)
+            //{
+            //    return StatusCode((int)HttpStatusCode.NotModified);
+            //}
+
+            //     await _webDavService.PutAsync(GetPath(path), Request.Body, cancellationToken);
+            string path = Request.Path;
+            path = path.TrimStart('/').Replace("/", "\\");
+            var filePath = Path.Combine(directory, path);
+            // Write the new file
+            //using (Stream input = Request.Body)
+            //{
+                using (FileStream output = System.IO.File.Create(filePath))
+                {
+                   await Request.Body.CopyToAsync(output); 
+                }
+            //}
+
+            // Send a success response
+            //Response.StatusCode = (int)HttpStatusCode.OK;
+            //Response.StatusDescription = "OK";
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("MKCOL")]
+        public async Task<IActionResult> MkCol(string? path, CancellationToken cancellationToken = default)
+        {
+            string newCollection = Path.Combine(directory, Request.Path.ToString().TrimStart('/').Replace("/", "\\"));
+            // Create the new directory
+            System.IO.Directory.CreateDirectory(newCollection);
+
+           
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("MOVE")]
+        public async Task<IActionResult> Move(string? path, CancellationToken cancellationToken = default)
+        {
+           
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+        public static string AutoRenameFilename(string destinationFilePath)
+        {
+            FileInfo file = new FileInfo(destinationFilePath);
+             
+            var filename = file.Name.Replace(file.Extension, string.Empty);
+            var dir = file.Directory.FullName;
+            var ext = file.Extension;
+
+            if (file.Exists)
+            {
+                int count = 0;
+                string added;
+
+                do
+                {
+                    count++;
+                    added = "(" + count + ")";
+                } while (System.IO.File.Exists(dir + "\\" + filename + "" + added + ext));
+
+                filename += "" + added;
+            }
+
+            return (dir +"\\"+ filename + ext);
+        }
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("COPY")]
+        public async Task<IActionResult> Copy(string? path, CancellationToken cancellationToken = default)
+        {
+            string sourceFilePath = Path.Combine(directory, HttpUtility.UrlDecode(Request.Path.ToString()).TrimStart('/').Replace("/", "\\"));
+
+            string destination = HttpUtility.UrlDecode(Request.Headers["Destination"]).Replace(Request.Scheme + "://" + Request.Host.Host + ":" + Request.Host.Port, "").TrimStart('/').Replace("/", "\\");
+            string destinationFilePath = AutoRenameFilename(Path.Combine(directory, destination));
+
+            // Check if the destination file already exists
+            if (System.IO.File.Exists(destinationFilePath))
+            {
+                return StatusCode((int)HttpStatusCode.Conflict); 
+            }
+            else
+            {
+                // Copy the file to the destination
+                try
+                {
+                    System.IO.File.Copy(sourceFilePath, destinationFilePath); 
+                    return StatusCode((int)HttpStatusCode.Created);
+                }
+                catch (IOException)
+                { 
+                    return StatusCode((int)HttpStatusCode.InternalServerError);
+                }
+            } 
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("LOCK")]
+        public async Task<string> LockAsync(string? path, CancellationToken cancellationToken = default)
+        {
+     
+            //Response.Headers.Add("LockAsync-Token", response.LockToken);
+            //Response.StatusCode = (int)HttpStatusCode.OK;
+
+            return "response.Xml";
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("UNLOCK")]
+        public ActionResult Unlock(string? path, CancellationToken cancellationToken = default)
+        {
+           
+
+            return StatusCode((int)HttpStatusCode.NoContent);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("PROPPATCH")]
+        public string Propatch(string? path)
+        {
+            return string.Empty;
+        }
+
+        string GetPath(string? path) => path is null ? "/" : $"/{path}";
+    }
+    
+
+}

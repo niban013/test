@@ -1,0 +1,477 @@
+
+using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
+using System.Xml.Linq;
+
+namespace WebDav.Controllers
+{
+    //[Authorize]
+    [Route("{**path}")]
+
+    public class WebDavController : ControllerBase
+    {
+        public static readonly XNamespace DavNs = "DAV:";
+        public static readonly string DavNsPrefix = "D";
+        private readonly ILogger<WebDavController> _logger;
+        IConfiguration configuration;
+        public string directory
+        {
+            get
+            {
+                return configuration["MountDir"];
+            }
+        }
+
+
+        public WebDavController(ILogger<WebDavController> logger, IConfiguration _configuration)
+        {
+            configuration = _configuration;
+            _logger = logger;
+            //isUnc();
+
+            //if (Utility.NetworkDrive.IsDriveMapped("R"))
+            //{
+            //}
+            //else 
+            //{
+            //    Utility.NetworkDrive.MapNetworkDrive("R", directory); 
+            //}
+            //var dirs = Directory.GetDirectories("R:"); // got many nice directories...
+
+
+        }
+
+        [HttpGet]
+        public async Task GetAsync(string? path, CancellationToken cancellationToken = default)
+        {
+            path = GetPath(path);
+            var filePath = GetPhysicPath(path);
+            if (System.IO.File.Exists(filePath))
+            {
+                Response.ContentType = GetMimeType(filePath);
+                Response.ContentLength = new FileInfo(filePath).Length;
+
+                using (var stream = new FileInfo(filePath).OpenRead())
+                {
+                    await stream.CopyToAsync(Response.Body);
+                }
+
+                Response.StatusCode = (int)HttpStatusCode.OK;
+            }
+
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("PROPFIND")]
+        public async Task<string> PropfindAsync(string? path, CancellationToken cancellationToken)
+        {  
+           // Response.Headers.Add("Accept-Encoding", "deflate, gzip, br");
+            path = GetPath(path);
+            var filePath = GetPhysicPath(path);
+            bool isDir = Directory.Exists(filePath);
+            bool isFile = System.IO.File.Exists(filePath);
+
+
+            var xMultiStatus = new XElement(DavNs + "multistatus");
+            var xml = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), xMultiStatus);
+            if (!isDir && !isFile)
+            {
+            }
+            else
+            {
+                if (Request.Headers["Depth"].ToString() == "0")
+                {
+                    xml.Root.AddFirst(CreateResponseElement(Request, filePath, true));
+                }
+                else 
+                {
+                    string[] dirs = new string[] { };
+                    List<FileInfo> files = new List<FileInfo>();
+                    if (isDir)
+                    {
+                        dirs = Directory.GetDirectories(filePath);
+
+                        foreach (string dir in dirs)
+                        {
+                            xml.Root.Add(CreateResponseElement(Request, dir, true));
+                        }
+                        files = new DirectoryInfo(filePath).GetFiles().Where(f => !f.Attributes.HasFlag(FileAttributes.Hidden)).ToList();
+
+                        foreach (var file in files)
+                        {
+                            xml.Root.Add(CreateResponseElement(Request, file.FullName, false));
+                        }
+                        if (dirs.Length > 0 || files.Count() > 0)
+                        {
+                            //if (filePath != directory || (filePath == directory && Request.Headers["Depth"].ToString() == "1"))// filePath != directory)//Request.Headers["Depth"] != "0")// && path != directory)
+                            //  {
+                            xml.Root.AddFirst(CreateResponseElement(Request, filePath, true));
+                            //  }
+                        }
+                        if (files.Count() == 0 && dirs.Length == 0)
+                        {
+                            xml.Root.Add(CreateResponseElement(Request, filePath, true, true));
+                        }
+                    }
+                    else
+                    {
+                        xml.Root.Add(CreateResponseElement(Request, filePath, false));
+                    }
+                } 
+            }
+            Response.StatusCode = (int)HttpStatusCode.MultiStatus;
+            var d = xml.ToString();
+            return d;
+        }
+        private XElement CreateResponseElement(HttpRequest request, string path, bool isDir, bool blast = false)
+        {
+            string href = GetUrlPath(request) + path.Replace(directory, "").Replace('\\', '/');
+            string displayName = Path.GetFileName(path);
+            XElement response = null;
+            //href = href.Replace(request.Host.ToString() + "/", "/");
+            ; if (blast)
+            {
+                response = new XElement(DavNs + "response",
+                   new XElement(DavNs + "href", href),
+                   new XElement(DavNs + "propstat",
+                       new XElement(DavNs + "prop",
+                           new XElement(DavNs + "displayname", ""),
+                           new XElement(DavNs + "getlastmodified", ""),
+                           new XElement(DavNs + "getlastaccessed", ""),
+                           new XElement(DavNs + "creationdate", ""),
+                           new XElement(DavNs + "getcontentlength", "0"),
+                           new XElement(DavNs + "getcontenttype", ""),
+                           new XElement(DavNs + "resourcetype", "")),
+                       new XElement(DavNs + "status", "HTTP/1.1 200 OK"))
+                   );
+            }
+            else
+            {
+                response = new XElement(DavNs + "response",
+                    new XElement(DavNs + "href", href),
+                    new XElement(DavNs + "propstat",
+                        new XElement(DavNs + "prop",
+                            new XElement(DavNs + "displayname", displayName),
+                            new XElement(DavNs + "getlastmodified", System.IO.File.GetLastWriteTimeUtc(path).ToString("R")),
+                            new XElement(DavNs + "getlastaccessed", System.IO.File.GetLastAccessTimeUtc(path).ToString("R")),
+                            new XElement(DavNs + "creationdate", System.IO.File.GetCreationTimeUtc(path).ToString("R")),
+                            new XElement(DavNs + "getcontentlength", isDir ? "0" : new FileInfo(path).Length.ToString()),
+                            new XElement(DavNs + "getcontenttype", isDir ? "httpd/unix-directory" : GetMimeType(path)),
+                            new XElement(DavNs + "resourcetype", isDir ? new XElement(DavNs + "collection") : null)),
+                        new XElement(DavNs + "status", "HTTP/1.1 200 OK")));
+
+            }
+            return response;
+        }
+
+        public static string GetMimeType(string fileName)
+        {
+            var provider = new FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(fileName, out string mimeType))
+            {
+                mimeType = "application/octet-stream";
+            }
+            return mimeType;
+        }
+        [HttpHead]
+        public ActionResult Head(string? path)
+        {
+            string head = null!;
+
+            if (head != null)
+            {
+                Response.Headers.Add("Last-Modified", DateTime.Now.ToString());
+                return Ok();
+            }
+            else
+                return NotFound();
+        }
+        //
+        [HttpOptions]
+        public ActionResult Options(string? path)
+        {
+            //Response.Headers.TryAdd("User-Agent", "Microsoft-WebDAV-MiniRedir");
+            Response.Headers.Add("Allow", "COPY, DELETE, GET, HEAD, LOCK, MOVE, OPTIONS, POST, PROPFIND, PROPPATCH, PUT, REPORT, SEARCH, UNLOCK");
+            Response.Headers.Add("Public", "COPY, DELETE, GET, HEAD, LOCK, MOVE, OPTIONS, POST, PROPFIND, PROPPATCH, PUT, REPORT, SEARCH, UNLOCK");
+            Response.Headers.Add("MS-Author-Via", "DAV");
+            Response.Headers.Add("DAV", "1,2,3,paging,resumable-upload");
+            Response.Headers.Add("DASL", "<DAV:basicsearch>");
+
+            return Ok();
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Delete(string? path)
+        {
+            path = GetPath(path);
+            var filePath = GetPhysicPath(path);
+            if (Directory.Exists(filePath))
+            {
+                var dir = new DirectoryInfo(filePath);
+                dir.Delete(true);
+                return StatusCode((int)HttpStatusCode.OK);
+            }
+            else if (System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    System.IO.File.Delete(filePath);
+                    return StatusCode((int)HttpStatusCode.OK);
+                }
+                catch (Exception)
+                {
+                    return StatusCode((int)HttpStatusCode.InternalServerError);
+                }
+            }
+            else
+            {
+                return StatusCode((int)HttpStatusCode.NotFound);
+            }
+        }
+
+        [HttpPut]
+        [DisableRequestSizeLimit]
+        public async Task<ActionResult> PutAsync(string? path, CancellationToken cancellationToken)
+        {
+            path = GetPath(path);
+            var filePath = GetPhysicPath(path);
+            using (FileStream output = System.IO.File.Create(filePath))
+            {
+                await Request.Body.CopyToAsync(output);
+            }
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("MKCOL")]
+        public async Task<IActionResult> MkCol(string? path, CancellationToken cancellationToken = default)
+        {
+            path = GetPath(path);
+            var filePath = GetPhysicPath(path);
+            System.IO.Directory.CreateDirectory(filePath);
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("MOVE")]
+        public async Task<IActionResult> Move(string? path, CancellationToken cancellationToken = default)
+        {
+            path = GetPath(path);
+            var sourceFilePath = GetPhysicPath(path);
+            string destination = HttpUtility.UrlDecode(Request.Headers["Destination"]).Replace(GetUrlPath(Request), directory).TrimStart('/').Replace("/", "\\");
+            try
+            {
+                if (Directory.Exists(sourceFilePath) && !Directory.Exists(destination))
+                {
+                    Directory.Move(sourceFilePath, destination);
+                }
+                else
+                {
+                    if (!System.IO.File.Exists(sourceFilePath))
+                    {
+                        return StatusCode((int)HttpStatusCode.NotFound);
+                    }
+
+                    if (System.IO.File.Exists(destination))
+                    {
+                        return StatusCode((int)HttpStatusCode.Conflict);
+                    }
+
+                    System.IO.File.Move(sourceFilePath, destination);
+                    return StatusCode((int)HttpStatusCode.Created);
+                }
+            }
+            catch (Exception)
+            {
+                return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
+
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+        public static string AutoRenameFilename(string destinationFilePath)
+        {
+            FileInfo file = new FileInfo(destinationFilePath);
+
+            var filename = file.Name.Replace(file.Extension, string.Empty);
+            var dir = file.Directory.FullName;
+            var ext = file.Extension;
+
+            if (file.Exists)
+            {
+                int count = 0;
+                string added;
+
+                do
+                {
+                    count++;
+                    added = "(" + count + ")";
+                } while (System.IO.File.Exists(dir + "\\" + filename + "" + added + ext));
+
+                filename += "" + added;
+            }
+
+            return (dir + "\\" + filename + ext);
+        }
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("COPY")]
+        public async Task<IActionResult> Copy(string? path, CancellationToken cancellationToken = default)
+        {
+            path = GetPath(path);
+            var sourceFilePath = GetPhysicPath(path);
+            string destination = HttpUtility.UrlDecode(Request.Headers["Destination"]).Replace(GetUrlPath(Request), "").TrimStart('/').Replace("/", "\\");
+            string destinationFilePath = "";
+            if (Directory.Exists(sourceFilePath))
+            {
+                destinationFilePath = Path.Combine(directory, destination);
+            }
+            else
+            {
+                destinationFilePath = AutoRenameFilename(Path.Combine(directory, destination));
+            }
+            if (System.IO.File.Exists(destinationFilePath))
+            {
+                return StatusCode((int)HttpStatusCode.Conflict);
+            }
+            else
+            {
+                try
+                {
+                    if (Directory.Exists(sourceFilePath))
+                    {
+                        DirectoryCopy(sourceFilePath, destinationFilePath, true);
+                    }
+                    else
+                    {
+                        System.IO.File.Copy(sourceFilePath, destinationFilePath);
+                    }
+                    return StatusCode((int)HttpStatusCode.Created);
+                }
+                catch (IOException)
+                {
+                    return StatusCode((int)HttpStatusCode.InternalServerError);
+                }
+            }
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("LOCK")]
+        public async Task<string> LockAsync(string? path, CancellationToken cancellationToken = default)
+        {
+            string lockToken = Guid.NewGuid().ToString();
+
+            Response.Headers.Add("Lock-Token", $"<urn:uuid:{lockToken}>");
+            // Return 200 OK status code
+            Response.StatusCode = (int)HttpStatusCode.OK;
+            return "";
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("UNLOCK")]
+        public ActionResult Unlock(string? path, CancellationToken cancellationToken = default)
+        {
+            string lockToken = Request.Headers["Lock-Token"];
+
+            if (string.IsNullOrEmpty(lockToken))
+            {
+                return StatusCode((int)HttpStatusCode.BadRequest);
+            }
+            return StatusCode((int)HttpStatusCode.NoContent);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("PROPPATCH")]
+        public string Propatch(string? path)
+        {
+            return string.Empty;
+        }
+
+        string GetPath(string? path) => path is null ? "/" : $"/{HttpUtility.UrlDecode(path)}";
+
+        string GetPhysicPath(string path)
+        {
+            return Path.Combine(directory, path.TrimStart('/').Replace("/", "\\"));
+        }
+        static string GetUrlPath(HttpRequest request)
+        {
+            return request.Scheme + "://" + request.Host.Host + ":" + request.Host.Port;
+        }
+
+        static void DirectoryCopy(string sourceDirName, string destDirName, bool copySubDirs)
+        {
+            // Get the subdirectories for the specified directory.
+            DirectoryInfo dir = new DirectoryInfo(sourceDirName);
+            DirectoryInfo[] dirs = dir.GetDirectories();
+
+            if (!dir.Exists)
+            {
+                throw new DirectoryNotFoundException(
+                    "Source directory does not exist or could not be found: "
+                    + sourceDirName);
+            }
+
+            // If the destination directory doesn't exist, create it.
+            if (!Directory.Exists(destDirName))
+            {
+                Directory.CreateDirectory(destDirName);
+            }
+
+            // Get the files in the directory and copy them to the new location.
+            FileInfo[] files = dir.GetFiles();
+            foreach (FileInfo file in files)
+            {
+                string temppath = Path.Combine(destDirName, file.Name);
+                file.CopyTo(temppath, false);
+            }
+
+            // If copying subdirectories, copy them and their contents to new location.
+            if (copySubDirs)
+            {
+                foreach (DirectoryInfo subdir in dirs)
+                {
+                    string temppath = Path.Combine(destDirName, subdir.Name);
+                    DirectoryCopy(subdir.FullName, temppath, copySubDirs);
+                }
+            }
+        }
+
+
+        bool isUnc()
+        {
+            bool bConnection = false;
+            var uncpath = configuration["MountDir"];
+            var user = configuration["user"];
+            var domain = configuration["domain"];
+            var password = configuration["password"];
+            if (!uncpath.StartsWith("\\"))
+            {
+                return true;
+            }
+            using (UNCAccessWithCredentials unc = new UNCAccessWithCredentials())
+            {
+                if (unc.NetUseWithCredentials(uncpath, user, domain, password))
+                {
+                    bConnection = true;
+                }
+                else
+                {
+
+                }
+            }
+
+            return bConnection;
+        }
+    }
+}

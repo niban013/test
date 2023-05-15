@@ -1,0 +1,101 @@
+<div class="main-container">
+	<header class="header-2">
+		<div class="branding">
+			<a class="nav-link">
+				<clr-icon shape="home" size="24"></clr-icon>
+				<span class="title">Clarity</span>
+			</a>
+		</div>
+		<div class="header-nav">
+			<a class="active nav-link nav-text">Home</a>
+		</div>
+	</header>
+	<div class="content-container">
+		<div class="content-area">
+			<clr-tree>
+				<clr-tree-node [clrExpanded]="true">
+					Static root folder
+					<clr-tree-node *clrRecursiveFor="let file of root; getChildren: getChildren"
+						[(clrSelected)]="file.selected">
+						{{file.name}}
+					</clr-tree-node>
+				</clr-tree-node>
+			</clr-tree>
+		</div>
+	</div>
+</div>
+
+
+import { Component, VERSION } from '@angular/core';
+import { ClrSelectedState } from '@clr/angular';
+
+@Component({
+  selector: 'my-app',
+  templateUrl: './app.component.html',
+  styleUrls: [ './app.component.css' ]
+})
+export class AppComponent  {
+  name = 'Angular ' + VERSION.major;
+  root = [
+        {
+            name: "src",
+            selected: ClrSelectedState.INDETERMINATE,
+            files: [
+                {
+                    name: "app",
+                    selected: ClrSelectedState.INDETERMINATE,
+                    files: [
+                        {
+                            name: "app.component.html",
+                            selected: ClrSelectedState.UNSELECTED
+                        },
+                        {
+                            name: "app.component.ts",
+                            selected: ClrSelectedState.UNSELECTED
+                        },
+                        {
+                            name: "app.module.ts",
+                            selected: ClrSelectedState.SELECTED
+                        },
+                        {
+                            name: "app.routing.ts",
+                            selected: ClrSelectedState.UNSELECTED
+                        }
+                    ]
+                },
+                {
+                    name: "environments",
+                    selected: ClrSelectedState.SELECTED,
+                    files: [
+                        {
+                            name: "environments.prod.ts",
+                            selected: ClrSelectedState.SELECTED
+                        },
+                        {
+                            name: "environment.ts",
+                            selected: ClrSelectedState.SELECTED
+                        }
+                    ]
+                },
+                {
+                    name: "index.html",
+                    selected: ClrSelectedState.UNSELECTED,
+                },
+                {
+                    name: "main.ts",
+                    selected: ClrSelectedState.UNSELECTED,
+                }
+            ]
+        },
+        {
+            name: "package.json",
+            selected: ClrSelectedState.UNSELECTED
+        },
+        {
+            name: "tsconfig.json",
+            selected: ClrSelectedState.UNSELECTED
+        }
+    ];
+
+    getChildren = (folder) => folder.files;
+}

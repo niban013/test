@@ -1,0 +1,77 @@
+To create a WebDAV server with Windows authentication using .NET Core and Docker on Linux, you can follow these steps:
+
+Create a new .NET Core Web API project or use an existing project.
+
+Add the required NuGet packages to your project:
+
+shell
+Copy code
+dotnet add package Microsoft.AspNetCore.Authentication.Negotiate
+dotnet add package Microsoft.AspNetCore.Server.Kestrel
+Configure Windows authentication in your Startup.cs file:
+csharp
+Copy code
+using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+
+public class Startup
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+            .AddNegotiate();
+        
+        // Add other services and dependencies as needed
+        // ...
+    }
+
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        app.UseAuthentication();
+        
+        // Configure other middleware and routes
+        // ...
+    }
+}
+Create a Dockerfile to define the Docker image for your WebDAV server:
+Dockerfile
+Copy code
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
+WORKDIR /app
+
+# Copy the project files and restore dependencies
+COPY *.csproj ./
+RUN dotnet restore
+
+# Copy the remaining files and build the project
+COPY . ./
+RUN dotnet publish -c Release -o out
+
+# Build the runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
+WORKDIR /app
+COPY --from=build-env /app/out .
+
+# Expose port 80 for HTTP
+EXPOSE 80
+
+# Start the application
+ENTRYPOINT ["dotnet", "YourWebDAVServer.dll"]
+Replace YourWebDAVServer with the name of your project or the main DLL file.
+
+Build the Docker image by running the following command in the directory containing the Dockerfile:
+shell
+Copy code
+docker build -t webdav-server .
+Run a container from the built image, mapping port 80 to a desired host port:
+shell
+Copy code
+docker run -d -p 8080:80 --name my-webdav-server webdav-server
+The WebDAV server is now running in a Docker container with Windows authentication enabled. You can access it using a WebDAV client or Windows File Explorer by connecting to http://localhost:8080 (or the mapped port you specified).
+Make sure to configure the necessary security settings, user accounts, and permissions within your WebDAV server application to ensure proper authentication and access control for Windows authentication.
+
+Please note that the provided example assumes you are using .NET 6 and the ASP.NET Core authentication middleware. Adjust the Dockerfile and code as necessary based on your specific .NET Core version and authentication requirements.
+
+Additionally, ensure that your Linux environment has the necessary dependencies installed and configured to support Windows authentication.

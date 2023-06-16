@@ -1,4 +1,392 @@
 
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Buffers;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Web;
+using System.Xml.Linq;
+using WebDavServer.Infrastructure.WebDav.Services;
+using WebDavServer.WebApi.Extensions;
+
+namespace WebDav.Controllers
+{
+    [Authorize]
+    [Route("{**path}")]
+
+    public class WebDav3Controller : ControllerBase
+    {
+        public static readonly XNamespace DavNs = "DAV:";
+        public static readonly string DavNsPrefix = "D";
+        private readonly ILogger<WebDavController> _logger;
+        private readonly IHttpContextAccessor httpContextAccessor;
+
+        private readonly WebDavService webDavService; 
+        IConfiguration configuration;
+        private string currentUser = "";
+        private bool block = false;
+        public string directory
+        {
+            get
+            {
+                var _dir = configuration["MountDir"];
+                //var splitStr = _dir.Split('\\');
+                //if (splitStr.Last() == string.Empty)
+                //{
+                //    _dir = Path.Combine(splitStr.SkipLast(1).ToArray());
+                //}
+                return _dir;// Path.Combine(@"",_dir);
+            }
+        }
+
+
+        public WebDav3Controller(IHttpContextAccessor httpContextAccessor, ILogger<WebDavController> logger, IConfiguration _configuration, WebDavService _weDavbService)
+        {
+            // Process.Start("cmd.exe", "/X" + @"net use \\tnoafs01.cminl.oa\INXDrive$ innoDrv@2021 /USER:drvuser");
+
+            //ClsCommon.Connect(@"tnoafs01.cminl.oa\INXDrive$", "drvuser", "innoDrv@2021" );
+            configuration = _configuration;
+            _logger = logger;
+            webDavService = _weDavbService;
+            this.httpContextAccessor = httpContextAccessor;
+            this.currentUser = this.httpContextAccessor.HttpContext.User.Identity.Name;
+            this.currentUser = string.IsNullOrEmpty(currentUser) ? "Webdav" : this.currentUser; 
+        }
+
+
+        [HttpGet]
+        public async Task GetAsync(string? path, CancellationToken cancellationToken = default)
+        {
+            //if (Request.Headers.IsIfLastModify())
+            //{
+            //    StatusCode((int)HttpStatusCode.NotModified);
+
+            //    return;
+            //}
+
+            var physicalPath = @"d:\dav\ss\aaa.txt";
+            StatusCode((int)HttpStatusCode.OK);
+
+            if (System.IO.File.Exists(physicalPath))
+            {
+                if (physicalPath.Contains(".txt"))
+                {
+                    Response.ContentType = "Content-Type: text/plain; charset=utf-8";
+                }
+                else
+                {
+                    Response.ContentType = GetMimeType(physicalPath);
+                }
+                Response.ContentLength = new FileInfo(physicalPath).Length;
+
+                using (var stream = new FileInfo(physicalPath).OpenRead())
+                {
+                    await stream.CopyToAsync(Response.Body);
+                }
+            }
+            else
+            {
+
+            }
+        }
+        string GetPath(string? path) => path is null ? "/" : $"{HttpUtility.UrlDecode(path)}";
+        string GetPhysicPath(string path)
+        {
+            if (path == "/")
+            {
+                return directory;
+            }
+            else
+            {
+                return Path.Combine(directory, path.Replace("/", "\\"));
+            }
+        }
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("PROPFIND")]
+        public async Task<string> PropfindAsync(string? path, CancellationToken cancellationToken)
+        {
+            var xMultiStatus = new XElement(DavNs + "multistatus");
+            var xml = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), xMultiStatus);
+            try
+            {
+               // callLog(Request);
+                path = GetPath(path);
+                if (path.Contains("favicon.ico")
+                   || path.Contains("desktop.ini")
+                   || path.Contains(".git")
+                   || path.Contains("HEAD")
+                   )
+                {
+                    return xml.ToString();
+                }
+                var filePath = GetPhysicPath(path);
+                bool isDir = Directory.Exists(filePath);
+                bool isFile = System.IO.File.Exists(filePath);
+
+                if (!isDir && !isFile)
+                {
+                    if (!block)
+                    {
+                        var response1 = new XElement(DavNs + "response",
+               new XElement(DavNs + "href", "http://tw075371p.cminl.oa:5002/ss/linux.pdf"),
+               new XElement(DavNs + "propstat",
+                   new XElement(DavNs + "prop",
+                       new XElement(DavNs + "displayname", "linux.pdf"),
+                       new XElement(DavNs + "getlastmodified", "2023-04-27T01:23:28.109Z"),
+                       new XElement(DavNs + "getlastaccessed", "2023-04-27T01:23:28.109Z"),
+                       new XElement(DavNs + "creationdate", "2023-04-27T01:23:28.109Z"),
+                       new XElement(DavNs + "getcontentlength", false ? "0" : "111"),
+                       new XElement(DavNs + "getcontenttype", false ? "httpd/unix-directory" : "application/octet-stream"),
+                       new XElement(DavNs + "resourcetype", false ? new XElement(DavNs + "collection") : null)),
+                   new XElement(DavNs + "status", "HTTP/1.1 200 OK")));
+
+                        xml.Root.Add(response1);
+                        Response.StatusCode = (int)HttpStatusCode.NotFound;
+                        block = true;
+                        return xml.ToString();
+                    }
+                    else
+                    {
+                        
+                        Response.StatusCode = (int)HttpStatusCode.MultiStatus;
+                        return xml.ToString();
+                    }
+                }
+                else
+                {
+                    if (Request.Headers["Depth"].ToString() == "0")
+                    {
+                        if (isFile)
+                        {
+                            xml.Root.Add(CreateResponseElement(Request, path.Split('/').Last(), false));
+                        }
+                        else
+                        {
+                            filePath = directory;
+                            xml.Root.AddFirst(CreateResponseElement(Request, filePath, true));
+                        }
+                    }
+                    else
+                    {
+                        string[] dirs = new string[] { };
+                        List<FileInfo> files = new List<FileInfo>();
+                        if (isDir)
+                        {
+                            dirs = Directory.GetDirectories(filePath);
+
+                            foreach (string dir in dirs)
+                            {
+                                xml.Root.Add(CreateResponseElement(Request, dir, true));
+                            }
+                            files = new DirectoryInfo(filePath).GetFiles().Where(f => !f.Attributes.HasFlag(FileAttributes.Hidden)).ToList();
+
+                            foreach (var file in files)
+                            {
+                                xml.Root.Add(CreateResponseElement(Request, file.FullName, false));
+                            }
+                            if (dirs.Length > 0 || files.Count() > 0)
+                            {
+                                xml.Root.AddFirst(CreateResponseElement(Request, filePath, true));
+                            }
+                            if (files.Count() == 0 && dirs.Length == 0)
+                            {
+                                xml.Root.Add(CreateResponseElement(Request, filePath, true));
+                            }
+                        }
+                        else
+                        {
+                            xml.Root.Add(CreateResponseElement(Request, filePath, false));
+                        }
+                    }
+                }
+                Response.StatusCode = (int)HttpStatusCode.MultiStatus;
+                ClsCommon.log(xml.ToString());
+
+            }
+            catch (Exception ex)
+            {
+            }
+            return xml.ToString();
+        }
+        static string GetUrlPath(HttpRequest request)
+        {
+            return request.Scheme + "://" + request.Host.Host + ":" + request.Host.Port;
+        }
+        private XElement CreateResponseElement(HttpRequest request, string path, bool isDir)
+        {
+            string physicalPath = "";
+            path = path.Replace(directory, "").TrimStart('\\');
+            string href = Path.Combine(GetUrlPath(request), path).Replace("\\", "/");
+            string displayName = Path.GetFileName(path);
+            XElement response = null;
+            if (isDir)
+            {
+                href = href.Reverse().First() != '/' ? href + "/" : href;
+                physicalPath = Path.Combine(directory, path);
+            }
+            else
+            {
+                physicalPath = Path.Combine(directory, path);
+            }
+
+
+            response = new XElement(DavNs + "response",
+                new XElement(DavNs + "href", href),
+                new XElement(DavNs + "propstat",
+                    new XElement(DavNs + "prop",
+                        new XElement(DavNs + "displayname", displayName),
+                        new XElement(DavNs + "getlastmodified", System.IO.File.GetLastWriteTimeUtc(physicalPath).ToString("R")),
+                        new XElement(DavNs + "getlastaccessed", System.IO.File.GetLastAccessTimeUtc(physicalPath).ToString("R")),
+                        new XElement(DavNs + "creationdate", System.IO.File.GetCreationTimeUtc(physicalPath).ToString("R")),
+                        new XElement(DavNs + "getcontentlength", isDir ? "0" : new FileInfo(physicalPath).Length.ToString()),
+                        new XElement(DavNs + "getcontenttype", isDir ? "httpd/unix-directory" : GetMimeType(physicalPath)),
+                        new XElement(DavNs + "resourcetype", isDir ? new XElement(DavNs + "collection") : null)),
+                    new XElement(DavNs + "status", "HTTP/1.1 200 OK")));
+
+
+            return response;
+        }
+        public static string GetMimeType(string fileName)
+        {
+            var provider = new FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(fileName, out string mimeType))
+            {
+                mimeType = "application/octet-stream";
+            }
+            return mimeType;
+        }
+        [HttpHead]
+        public ActionResult Head(string? path)
+        {
+            string head = null!;
+            return Ok();
+            //if (head != null)
+            //{
+            //    Response.Headers.Add("Last-Modified", DateTime.Now.ToString());
+            //    return Ok();
+            //}
+            //else
+            //    return NotFound();
+        }
+
+        [HttpOptions]
+        public ActionResult Options(string? path)
+        {
+            var methods = new string[]
+            {
+                "OPTIONS", "GET", "HEAD", "PROPFIND", "MKCOL", "PUT", "DELETE", "COPY", "MOVE", "LOCK", "UNLOCK", "PROPPATCH"
+            };
+
+            Response.Headers.Add("Allow", String.Join(',', methods));
+            Response.Headers.Add("DAV", "1,2,extend");
+
+            return Ok();
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Delete(string? path)
+        {
+            if (path is null)
+            {
+                return StatusCode((int)HttpStatusCode.Conflict);
+            }
+
+         
+
+            return Ok();
+        }
+      
+        [HttpPut]
+        [DisableRequestSizeLimit]
+        public async Task<ActionResult> PutAsync(string? path, CancellationToken cancellationToken)
+        {
+            var contentLength = Request.ContentLength ?? 0;
+
+            if (contentLength == 0)
+            {
+                return StatusCode((int)HttpStatusCode.NotModified);
+            }
+
+
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("MKCOL")]
+        public async Task<IActionResult> MkCol(string? path, CancellationToken cancellationToken = default)
+        {
+         
+
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("MOVE")]
+        public async Task<IActionResult> Move(string? path, CancellationToken cancellationToken = default)
+        {
+         
+
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("COPY")]
+        public async Task<IActionResult> Copy(string? path, CancellationToken cancellationToken = default)
+        {
+           
+            return StatusCode((int)HttpStatusCode.Created);
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("LOCK")]
+        public async Task<string> LockAsync(string? path, CancellationToken cancellationToken = default)
+        {
+
+            var result = await Request.BodyReader.ReadAsync(cancellationToken); 
+            var response =  Encoding.UTF8.GetString(result.Buffer.ToArray());
+
+        
+            Response.StatusCode = (int)HttpStatusCode.OK;
+
+            return response.ToString();
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("UNLOCK")]
+        public ActionResult Unlock(string? path, CancellationToken cancellationToken = default)
+        {
+            string lockToken = Request.Headers["Lock-Token"];
+
+            //if (string.IsNullOrEmpty(lockToken))
+            //{
+            //    return StatusCode((int)HttpStatusCode.BadRequest);
+            //}
+            return StatusCode((int)HttpStatusCode.NoContent); 
+        }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [AcceptVerbs("PROPPATCH")]
+        public string Propatch(string? path)
+        {
+          //  Response.StatusCode = (int)HttpStatusCode.MultiStatus;
+            return string.Empty;
+        }
+    }
+}
 using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

@@ -1,3 +1,15 @@
+  @ViewChildren(ClrDatagridColumn) columns:QueryList<ClrDatagridColumn>;
+   
+  clearFilter() {
+    this.columns.forEach((column) => (column.updateFilterValue = ''));
+    this.columns.forEach((column) => (column.sortBy = ''));
+    this.columns.forEach((column) => (column.sortOrder = ClrDatagridSortOrder.UNSORTED));
+  }
+}
+
+interface Foo {
+  [key: string]: QueryList<ClrDatagridColumn>;
+}
 
 https://www.joe0.com/2019/01/27/how-create-a-custom-browser-uri-scheme-and-c-protocol-handler-client-that-supports-opening-and-editing-of-remotely-hosted-documents-through-webdav/
 

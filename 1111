@@ -1,4 +1,30 @@
-  @ViewChildren(ClrDatagridColumn) columns:QueryList<ClrDatagridColumn>;
+https://stackblitz.com/edit/clarity-angular8-starter-auvjuz?file=src%2Fapp%2Fapp.component.html,src%2Fapp%2Fapp.component.ts
+
+<form clrForm>
+  <clr-input-container>
+    <label>This is built with clr input</label>
+    <input placeholder="Full name" clrInput [(ngModel)]="clrExample" name="name" required />
+    <clr-icon shape="search" size="24"></clr-icon>
+    <clr-control-helper>Helper text</clr-control-helper>
+    <clr-control-error>This field is required!</clr-control-error>
+  </clr-input-container>
+</form>
+
+
+<div class="clr-form-control">
+  <label for="basic" class="clr-control-label">This is built with clarity css</label>
+  <div class="clr-control-container" [class.clr-error]="!cssExample">
+    <div class="clr-input-wrapper">
+      <input type="text" id="basic" width="20px"  [(ngModel)]="cssExample" placeholder="Enter value here" class="clr-input" required>
+      <clr-icon class="clr-validate" shape="search"></clr-icon>
+    </div>
+    <span class="clr-subtext">Helper Text</span>
+  </div>
+</div>
+
+
+
+@ViewChildren(ClrDatagridColumn) columns:QueryList<ClrDatagridColumn>;
    
   clearFilter() {
     this.columns.forEach((column) => (column.updateFilterValue = ''));

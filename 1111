@@ -1,5 +1,5 @@
 https://stackblitz.com/edit/clarity-angular8-starter-auvjuz?file=src%2Fapp%2Fapp.component.html,src%2Fapp%2Fapp.component.ts
-
+https://www.jianshu.com/p/73e423fe271c
 <form clrForm>
   <clr-input-container>
     <label>This is built with clr input</label>

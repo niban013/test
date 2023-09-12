@@ -1,3 +1,35 @@
+
+https://www.cnblogs.com/yaopengfei/p/8229175.html
+     CancellationTokenSource cts;
+     CancellationToken cancellationToken;
+     private async void Process(CancellationToken cancellationToken)
+     {
+         while (true)
+         {
+             if (cancellationToken.IsCancellationRequested)
+             {
+                 return;
+             }
+             Thread.Sleep(1000);
+             label1.Invoke(new Action(() => label1.Text = $"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")}程序正在运行..."));
+
+             Thread.Sleep(500);
+         }
+     }
+     private async void button4_Click(object sender, EventArgs e)
+     {
+         cts = new CancellationTokenSource();
+         cancellationToken = cts.Token;
+         Task task = Task.Run(() => Process(cancellationToken)); 
+     } 
+     private void button5_Click(object sender, EventArgs e)
+     {
+       
+         if (cts != null && !cts.IsCancellationRequested)
+         {
+             cts.Cancel();
+         }
+     }
 https://stackblitz.com/edit/clarity-angular8-starter-auvjuz?file=src%2Fapp%2Fapp.component.html,src%2Fapp%2Fapp.component.ts
 https://www.jianshu.com/p/73e423fe271c
 <form clrForm>

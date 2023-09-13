@@ -1,4 +1,4 @@
-
+http://binaryworld.net/blogs/how-to-compile-visual-studio-solution-from-commandline-and-check-status-in-dos-bat-file/
 https://www.cnblogs.com/yaopengfei/p/8229175.html
      CancellationTokenSource cts;
      CancellationToken cancellationToken;

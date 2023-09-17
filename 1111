@@ -1,3 +1,28 @@
+@rem 作用：通过批处理脚本命令行编译VS工程
+@Echo OFF
+Echo "Building solution/project file using batch file"
+SET PROGRAM_32BIT=%ProgramFiles%
+if not "%ProgramFiles%" == "" set PROGRAM_32BIT=%ProgramFiles%
+set buildconfig="Release|Any CPU"
+SET DevEnvPath=%PROGRAM_32BIT%\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe
+SET SolutionPath=C:\test\2022\inno\WordAddIn1.sln
+SET BuildLogFile=C:\test\BuildErrorLog1.txt
+if not exist "%DevEnvPath%" ECHO "no file1" &goto END
+if not exist "%SolutionPath%" ECHO "no file2" &goto END
+if exist "%BuildLogFile%" DEL /Q "%BuildLogFile%"
+Echo Start Time - %Time%
+"%DevEnvPath%"  "%SolutionPath%" /clean %buildconfig% /out "%BuildLogFile%" 
+"%DevEnvPath%"  "%SolutionPath%" /rebuild %buildconfig% /out "%BuildLogFile%"
+@rem call "C:\Program Files (x86)\Inno Setup 6\compil32.exe" /cc C:\Users\Honjay\Desktop\aa\test.iss
+@rem exit /b
+Echo End Time - %Time%
+@rem Set /p Wait=Build Process Completed...
+type "%BuildLogFile%"
+
+:END
+Set /p Wait=Build Process Completed...
+@echo on
+MarkInternalAsUnsafe
 @rem 说明：Windows平台命令行编译脚本
 @rem 作用：通过批处理脚本命令行编译VS工程
 @echo off

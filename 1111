@@ -1,3 +1,79 @@
+
+using System;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Text;
+using System.Security.Cryptography;
+一些常數：
+
+// maxHashSize needs to be a multiple of 4 for the Base64 Encoding
+protected static readonly int maxHashSize = 48;
+
+// Length of the random salt. Can be any length.
+protected static readonly int saltSize = 5;
+maxHashSize是產生的Hash（包括Salt）的最大字串長度。請注意，由於 BASE64 編碼，該長度必須是 4 的倍數。例如，如果資料庫中的密碼列有 50 個字元寬，則 maxHashSize 為 48 是一個合理的選擇。
+
+saltSize是用於 Salt 的位元組數。
+
+public static string ComputeHash(
+  string myPassword,
+  byte[] saltBytes = null)
+{
+  // randomly create the Salt
+  // unless it has been passed in
+  if (saltBytes == null)
+  {
+    saltBytes = new byte[saltSize];
+    RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
+    rng.GetNonZeroBytes(saltBytes);
+  }
+
+  // Concat the Salt and Password
+  byte[] myPasswordBytes = Encoding.UTF8.GetBytes(myPassword);
+  byte[] myPasswordWithSaltBytes = 
+    saltBytes.Concat(myPasswordBytes).ToArray();
+
+  // Hash the Salt + Password
+  HashAlgorithm hash = new SHA512Managed();
+  byte[] hashBytes = hash.ComputeHash(myPasswordWithSaltBytes);
+  byte[] hashWithSaltBytes = saltBytes.Concat(hashBytes).ToArray();
+
+  // Convert to BASE64 and cut off after the maximum size
+  string hashValue = Convert.ToBase64String(hashWithSaltBytes);
+  return hashValue.Substring(0, maxHashSize);
+}
+除非傳入 Salt，否則此方法會建立隨機 Salt。然後，將 Salt 與密碼連接並進行雜湊處理。對於雜湊函數，可以使用任何實作 HashAlgorithm 的類，請參閱此處 的列表。一般來說，*託管類別可以在大多數情況下使用。如果您有特殊的政府認證要求，可以選擇經過 FIPS 認證的 *CNG 類別。
+
+public static bool VerifyHash(
+  string myPassword,
+  string hashValue)
+{
+  // Convert base64-encoded hash value into a byte array.
+  byte[] hashWithSaltBytes = Convert.FromBase64String(hashValue);
+
+  // Copy salt from the beginning of the hash to the new array.
+  byte[] saltBytes = hashWithSaltBytes.Take(saltSize).ToArray();
+
+  // Compute a new hash string.
+  string expectedHashString = 
+    ComputeHash(myPassword, saltBytes);
+
+  // If the computed hash matches the specified hash,
+  // the myPassword value must be correct.
+  return (hashValue == expectedHashString);
+}
+讓我們看看它的實際效果：
+
+public static void Main (string[] args)
+{
+  string myPass = "MySecretPassword";
+  string myHash = ComputeHash(myPass);
+
+  if (VerifyHash(myPass, myHash))
+  {
+    Console.WriteLine("The password was correct!");
+  }
+}
 @rem 作用：通过批处理脚本命令行编译VS工程
 @Echo OFF
 Echo "Building solution/project file using batch file"

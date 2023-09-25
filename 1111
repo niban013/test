@@ -2,7 +2,17 @@ https://stackblitz.com/edit/angular-google-maps-demo-umhx5f?file=app%2Fapp.compo
 https://stackblitz.com/edit/angular-mqtt-test?file=app%2Fapp.component.ts
 https://www.cnblogs.com/misakayoucn/p/17577059.html
 
+  Process process = new Process();
 
+  process.StartInfo.FileName = "notepad.exe";
+
+  process.StartInfo.Verb = "open";
+
+  process.StartInfo.WindowStyle = ProcessWindowStyle.Minimized;
+
+  process.StartInfo.Arguments = @"//127.0.0.1@32356/DavWWWRoot/z.txt";
+
+  process.Start();
 
 https://github.com/poychang/demo-register-app-custom-url-protocol
 using System;

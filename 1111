@@ -1,7 +1,7 @@
 https://stackblitz.com/edit/angular-google-maps-demo-umhx5f?file=app%2Fapp.component.ts,node_modules%2Fngx-mqtt%2Fsrc%2Fmqtt.service.d.ts
 https://stackblitz.com/edit/angular-mqtt-test?file=app%2Fapp.component.ts
 https://www.cnblogs.com/misakayoucn/p/17577059.html
-
+NativeCredential.GetNativeCredential
   Process process = new Process();
 
   process.StartInfo.FileName = "notepad.exe";

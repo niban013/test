@@ -5,7 +5,7 @@ NativeCredential.GetNativeCredential
   Process process = new Process();
 
   process.StartInfo.FileName = "notepad.exe";
-
+private createNewWebSocket(jobId: string): WebSocketSubject<any>
   process.StartInfo.Verb = "open";
 
   process.StartInfo.WindowStyle = ProcessWindowStyle.Minimized;

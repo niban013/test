@@ -3,7 +3,7 @@ https://stackblitz.com/edit/angular-mqtt-test?file=app%2Fapp.component.ts
 https://www.cnblogs.com/misakayoucn/p/17577059.html
 NativeCredential.GetNativeCredential
   Process process = new Process();
-
+https://github.com/malcomvetter/WMIProcessWatcher/blob/master/WMIProcessWatcher/Program.cs
   process.StartInfo.FileName = "notepad.exe";
 private createNewWebSocket(jobId: string): WebSocketSubject<any>
   process.StartInfo.Verb = "open";

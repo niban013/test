@@ -5,6 +5,7 @@ NativeCredential.GetNativeCredential
 https://stackoverflow.com/questions/4822400/register-an-exe-so-you-can-run-it-from-any-command-line-in-windows
 https://qiita.com/kawaidainf/items/0aeace9a49b9770e2545
 SET "PATH=C:\test\2022\cmdtest\cmdtest\bin\Debug\net7.0;%PATH%"
+https://www.peterviola.com/using-c-to-modify-windows-server-environment-variables/
 Process process = new Process();
 https://github.com/malcomvetter/WMIProcessWatcher/blob/master/WMIProcessWatcher/Program.cs
   process.StartInfo.FileName = "notepad.exe";

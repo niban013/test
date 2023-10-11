@@ -2,7 +2,10 @@ https://stackblitz.com/edit/angular-google-maps-demo-umhx5f?file=app%2Fapp.compo
 https://stackblitz.com/edit/angular-mqtt-test?file=app%2Fapp.component.ts
 https://www.cnblogs.com/misakayoucn/p/17577059.html
 NativeCredential.GetNativeCredential
-  Process process = new Process();
+https://stackoverflow.com/questions/4822400/register-an-exe-so-you-can-run-it-from-any-command-line-in-windows
+https://qiita.com/kawaidainf/items/0aeace9a49b9770e2545
+SET "PATH=C:\test\2022\cmdtest\cmdtest\bin\Debug\net7.0;%PATH%"
+Process process = new Process();
 https://github.com/malcomvetter/WMIProcessWatcher/blob/master/WMIProcessWatcher/Program.cs
   process.StartInfo.FileName = "notepad.exe";
 private createNewWebSocket(jobId: string): WebSocketSubject<any>

@@ -1,3 +1,135 @@
+using Downloader;
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Numerics;
+using System.Reflection.Emit;
+
+var downloadOpt = new DownloadConfiguration()
+{
+    // usually, hosts support max to 8000 bytes, default values is 8000
+    BufferBlockSize = 10240,
+    // file parts to download, default value is 1
+    ChunkCount = 8,
+    // download speed limited to 2MB/s, default values is zero or unlimited
+    MaximumBytesPerSecond = 1024 * 1024 * 2,
+    // the maximum number of times to fail
+    MaxTryAgainOnFailover = 5,
+    // release memory buffer after each 50 MB
+    MaximumMemoryBufferBytes = 1024 * 1024 * 50,
+    // download parts of file as parallel or not. Default value is false
+    ParallelDownload = true,
+    // number of parallel downloads. The default value is the same as the chunk count
+    ParallelCount = 4,
+    // timeout (millisecond) per stream block reader, default values is 1000
+    Timeout = 1000,
+    // set true if you want to download just a specific range of bytes of a large file
+    RangeDownload = false,
+    // floor offset of download range of a large file
+    RangeLow = 0,
+    // ceiling offset of download range of a large file
+    RangeHigh = 0,
+    // clear package chunks data when download completed with failure, default value is false
+    ClearPackageOnCompletionWithFailure = true,
+    // minimum size of chunking to download a file in multiple parts, default value is 512
+    MinimumSizeOfChunking = 1024,
+    // Before starting the download, reserve the storage space of the file as file size, default value is false
+    ReserveStorageSpaceBeforeStartingDownload = true,
+    // config and customize request headers
+    //RequestConfiguration =
+    //{
+    //    Accept = "*/*",
+    //   // CookieContainer = cookies,
+    //    Headers = new WebHeaderCollection(), // { your custom headers }
+    //    KeepAlive = true, // default value is false
+    //    ProtocolVersion = HttpVersion.Version11, // default value is HTTP 1.1
+    //    UseDefaultCredentials = false,
+    //    // your custom user agent or your_app_name/app_version.
+    //    UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    //    Proxy = new WebProxy()
+    //    {
+    //        Address = new Uri("http://YourProxyServer/proxy.pac"),
+    //        UseDefaultCredentials = false,
+    //        Credentials = System.Net.CredentialCache.DefaultNetworkCredentials,
+    //        BypassProxyOnLocal = true
+    //    }
+    //}
+};
+var downloader = new DownloadService(downloadOpt);
+downloader.DownloadStarted += DownloadStarted;
+downloader.DownloadFileCompleted += DownloadFileCompleted;
+downloader.DownloadProgressChanged += DownloadProgressChanged;
+Console.Write("Hello : ");
+//for (int k = 0; k <= 100; k++)
+//{
+//    Console.SetCursorPosition(80, 0);
+//    Console.Write("{0}%", k);
+//    System.Threading.Thread.Sleep(50);
+//}
+
+await downloader.DownloadFileTaskAsync(@"https://files.testfile.org/PDF/10MB-TESTFILE.ORG.pdf", @"C:\vm\c.pdf");
+Console.WriteLine();
+await downloader.DownloadFileTaskAsync(@"https://files.testfile.org/PDF/10MB-TESTFILE.ORG.pdf", @"C:\vm\c2.pdf");
+
+
+void DownloadStarted(object? sender, DownloadStartedEventArgs e)
+{
+    Trace.WriteLine(
+        $"图片, FileName:{Path.GetFileName(e.FileName)}, TotalBytesToReceive:{e.TotalBytesToReceive}");
+}
+
+void DownloadFileCompleted(object? sender, AsyncCompletedEventArgs e)
+{
+    //Trace.WriteLine($"下载完成, filepath:{filepath}");
+    // percentageBar.Dispose();
+}
+int left = Console.CursorLeft;
+    int top = Console.CursorTop;
+void DownloadProgressChanged(object? sender, Downloader.DownloadProgressChangedEventArgs e)
+{
+    int maxValue = 10000;    // 表示數值最大值
+    int factor = 2;          // 表示 ProgressBar 每格 % 數
+    int process = (int)(((float)(int)(e.ProgressPercentage * 1) / maxValue) * 100 / factor);
+    //this.BeginInvoke((Action)(() =>
+    //{
+    //    label1.Text = ((int)(e.ProgressPercentage * 100)).ToString();
+    //}));
+    //Console.SetCursorPosition(left, top);
+    //Console.WriteLine("\n ****** ConsoleApp ProgressBar Style 2 ... ****** ");
+    //ProgressBarStyle2(process);
+    //ShowProgressBar((int)(e.ProgressPercentage * 1), 100); Thread.Sleep(500);
+    Console.Write("\rDownloaded Percentage: {0}", ((int)(e.ProgressPercentage * 1)).ToString());
+    //Console.WriteLine(((int)(e.ProgressPercentage * 1)).ToString());
+    //ConsoleProgress.Tick((int)(e.ProgressPercentage * 100));
+    //if (sender is DownloadService ds)
+    //    e.UpdateTitleInfo(ds.IsPaused);
+    //  percentageBar.AsProgress<double>().Report(e.ProgressPercentage);
+}
+
+static void ProgressBarStyle2(int percent)
+{
+    int factor = 2;          // 表示 ProgressBar 每格 % 數
+
+    Console.Write("|");
+    for (int i = 1; i <= percent; i++)
+    {
+        Console.BackgroundColor = ConsoleColor.Yellow;
+        Console.Write(" ");
+    }
+    for (int i = percent; i < 100 / factor; i++)
+    {
+        Console.BackgroundColor = ConsoleColor.DarkCyan;
+        Console.Write(" ");
+    }
+    Console.BackgroundColor = ConsoleColor.Black;
+    Console.Write("| ");
+
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine(string.Format("{0}%", percent * factor));
+    Console.ForegroundColor = ConsoleColor.White; ;
+}
+
+
 https://stackblitz.com/edit/angular-google-maps-demo-umhx5f?file=app%2Fapp.component.ts,node_modules%2Fngx-mqtt%2Fsrc%2Fmqtt.service.d.ts
 https://stackblitz.com/edit/angular-mqtt-test?file=app%2Fapp.component.ts
 https://www.cnblogs.com/misakayoucn/p/17577059.html

@@ -1,3 +1,39 @@
+  private  void xx(HttpClient httpClient,int i) 
+  {
+      //make the sync GET request
+      using (var request = new HttpRequestMessage(HttpMethod.Get, "https://getsamplefiles.com/download/zip/sample-3.zip"))
+      {
+          using (var response = httpClient.Send(request, HttpCompletionOption.ResponseHeadersRead))
+          {
+              if (response.IsSuccessStatusCode)
+              {
+                  var stream = response.Content.ReadAsStreamAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+                 // var fileinfo = new FileInfo(@$"C:\vm\c{i}.zip");
+                  //using (var fileStream = fileinfo.OpenWrite())
+                  using (FileStream fileStream = new FileStream(@$"C:\vm\c{i}.zip", FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true))
+                  //stream.CopyTo(fileStream);
+                  {  
+                      byte[] buffer = new byte[8 * 1024];
+                      int len;
+                      while ((len = stream.Read(buffer, 0, buffer.Length)) > 0)
+                      {
+                          fileStream.Write(buffer, 0, len);
+                      }
+                  }
+              }
+              else
+              {
+                  //  throw new exception("file not found");
+              }
+          }
+          GC.Collect();
+      }
+  }
+
+
+
+
+
 using Downloader;
 using System;
 using System.ComponentModel;

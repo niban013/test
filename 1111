@@ -1,5 +1,5 @@
   private  void xx(HttpClient httpClient,int i) 
-  {
+  {#define MyAppPackPath SourcePath + "\..\images"
       //make the sync GET request
       using (var request = new HttpRequestMessage(HttpMethod.Get, "https://getsamplefiles.com/download/zip/sample-3.zip"))
       {

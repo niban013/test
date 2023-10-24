@@ -1,4 +1,8 @@
-  private  void xx(HttpClient httpClient,int i) 
+const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric' , minute: 'numeric', second: 'numeric',hour12: false};
+var date = file.lastModifiedDate.toLocaleString('zh-TW', options)
+  
+
+private  void xx(HttpClient httpClient,int i) 
   {#define MyAppPackPath SourcePath + "\..\images"
       //make the sync GET request
       using (var request = new HttpRequestMessage(HttpMethod.Get, "https://getsamplefiles.com/download/zip/sample-3.zip"))

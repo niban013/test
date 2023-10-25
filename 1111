@@ -1,6 +1,14 @@
 const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric' , minute: 'numeric', second: 'numeric',hour12: false};
 var date = file.lastModifiedDate.toLocaleString('zh-TW', options)
-  
+   public List<string> GetFiles(string path)
+ {
+     List<string> rs = new List<string>();
+
+     ProcessFiles(rs, path);
+
+     return rs;
+ }
+ void ProcessFiles(List<string> rs,string path)
 
 private  void xx(HttpClient httpClient,int i) 
   {#define MyAppPackPath SourcePath + "\..\images"

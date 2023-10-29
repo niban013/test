@@ -1,3 +1,136 @@
+\\
+ public static class MultipartRequestManager
+ {
+     // get the boundary information, for above exmaple would be: --------------------------156313382635509050530525
+     public static string GetBoundary(MediaTypeHeaderValue contentType)
+     {
+         var boundary = HeaderUtilities.RemoveQuotes(contentType.Boundary).Value;
+
+         if (string.IsNullOrWhiteSpace(boundary))
+         {
+             throw new InvalidDataException("Missing content-type boundary.");
+         }
+         return boundary;
+     }
+
+     // validate if it was multipart form data
+     public static bool IsMultipartContentType(string contentType)
+     {
+         return !string.IsNullOrEmpty(contentType)
+                && contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;
+     }
+
+     public static bool HasFormDataContentDisposition(ContentDispositionHeaderValue contentDisposition)
+     {
+         //  for exmaple, Content-Disposition: form-data; name="subdirectory";
+         return contentDisposition != null
+             && contentDisposition.DispositionType.Equals("form-data")
+             && string.IsNullOrEmpty(contentDisposition.FileName.Value)
+             && string.IsNullOrEmpty(contentDisposition.FileNameStar.Value);
+     }
+
+     public static bool HasFileContentDisposition(ContentDispositionHeaderValue contentDisposition)
+     {
+         // for example, Content-Disposition: form-data; name="files"; filename="OnScreenControl_7.58.zip"
+         // ...
+         return contentDisposition != null
+             && contentDisposition.DispositionType.Equals("form-data")
+             && (!string.IsNullOrEmpty(contentDisposition.FileName.Value)
+                 || !string.IsNullOrEmpty(contentDisposition.FileNameStar.Value));
+     }
+ }
+
+ // we disable automatic model binding for MVC default behavior than to the access streaming directly 
+ [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+ public class DisableFormValueModelBindingAttribute : Attribute, IResourceFilter
+ {
+     public void OnResourceExecuting(ResourceExecutingContext context)
+     {
+         var factories = context.ValueProviderFactories;
+         factories.RemoveType<FormValueProviderFactory>();
+         factories.RemoveType<JQueryFormValueProviderFactory>();
+     }
+
+     public void OnResourceExecuted(ResourceExecutedContext context)
+     {
+     }
+ }
+
+try
+{
+    if (!MultipartRequestManager.IsMultipartContentType(Request.ContentType))
+    {
+        throw new FormatException("Form without multipart content.");
+    }
+
+    var subDirectory = string.Empty;
+    var count = 0;
+    var totalSize = 0L;
+    // find the boundary
+
+    var boundary = MultipartRequestManager.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType));
+    // use boundary to iterator through the multipart section
+    var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+    var section = await reader.ReadNextSectionAsync();
+    do
+    {
+        ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition);
+        if (!MultipartRequestManager.HasFileContentDisposition(contentDisposition))
+        {
+            if (MultipartRequestManager.HasFormDataContentDisposition(contentDisposition) && contentDisposition.Name == nameof(subDirectory))
+            {
+                using var streamReader = new StreamReader(section.Body, Encoding.UTF8);
+                // get the subdirectory first
+                subDirectory = streamReader.ReadToEnd();
+            }
+
+            section = await reader.ReadNextSectionAsync();
+            continue;
+        }
+        totalSize += await SaveFileAsync(section, subDirectory);
+
+        count++;
+        section = await reader.ReadNextSectionAsync();
+    } while (section != null);
+
+    return Ok(new { Count = count, Size = SizeConverter(totalSize) });
+
+}
+catch (Exception exception)
+{
+    return BadRequest($"Error: {exception.Message}");
+}
+  HttpClient http = new HttpClient();
+  http.BaseAddress = new Uri("http://localhost:5020");
+  //http.DefaultRequestHeaders.Add("Authorization", @"Basic xxxxxxxx"); // 基本認證機制
+
+  //## 用 Multipart-FormData 封包傳送
+  string boundary = string.Format("----WebKitFormBoundary{0}", DateTime.Now.Ticks.ToString("x"));
+  MultipartFormDataContent formData = new MultipartFormDataContent(boundary);
+
+  //MultipartFormDataContent formData = new MultipartFormDataContent();
+  //formData.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data");
+  // 封裝[req]資訊 <--- 以JSON包裝資訊
+  formData.Add(new StringContent(JsonConvert.SerializeObject("test")), "req");
+
+  // 封裝檔案 <--- 以Stream包裝附件檔案
+  //foreach (var c in streamList)
+  //{
+  FileStream fStream = System.IO.File.Open(@"C:\vm\update\testAddIis.exe", FileMode.Open, FileAccess.Read);
+  formData.Add(new StreamContent(fStream, (int)fStream.Length), "file", "testAddIis.exe");
+  //formData.Add(new StreamContent(File.OpenRead(@"C:\vm\update\testAddIis.exe")), "files", "testAddIis.exe");
+ 
+  //}
+
+  HttpResponseMessage response = http.PostAsync("/WeatherForecast/uploadlarge", formData).Result;
+  if (!response.IsSuccessStatusCode)
+      throw new HttpRequestException(response.Content.ReadAsStringAsync().Result);
+
+  // success
+  var resp = response.Content.ReadAsStringAsync().Result;
+
+
 const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric' , minute: 'numeric', second: 'numeric',hour12: false};
 var date = file.lastModifiedDate.toLocaleString('zh-TW', options)
    public List<string> GetFiles(string path)

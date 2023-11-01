@@ -1,4 +1,4 @@
-\\
+\\https://azisava.sakura.ne.jp/programming/0022.html
  public static class MultipartRequestManager
  {
      // get the boundary information, for above exmaple would be: --------------------------156313382635509050530525

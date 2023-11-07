@@ -1,5 +1,45 @@
 https://blog.uwinfo.com.tw/auth/article/bike/484
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  WinHttpReq: Variant;
+  Connected: Boolean;
+begin
+  Connected := False;
+  repeat
+    Log('Checking connection to the server');
+    try
+      WinHttpReq := CreateOleObject('WinHttp.WinHttpRequest.5.1');
+      { Use your real server host name }
+      WinHttpReq.Open('GET', 'https://www1.example.com/', False);
+      WinHttpReq.Send('');
+      Log('Connected to the server; status: ' + IntToStr(WinHttpReq.Status) + ' ' +
+          WinHttpReq.StatusText);
+      Connected := True;
+    except
+      Log('Error connecting to the server: ' + GetExceptionMessage);
+      if WizardSilent then
+      begin
+        Log('Connection to the server is not available, aborting silent installation');
+         Result := 'Prerequisites test failed';
+        Exit;
+      end
+        else
+      if MsgBox('Cannot reach server. Please check your Internet connection.',
+                mbError, MB_RETRYCANCEL) = IDRETRY then
+      begin
+        Log('Retrying');
+      end
+        else
+      begin
+        Log('Aborting');
+       Result := 'Prerequisites test failed';
+        Exit;
+      end;
+    end;
+  until Connected;
 
+  Result := '';
+end;
 https://www.twblogs.net/a/5f01f0040b1faa371958e196
 https://stackblitz.com/edit/angular-setinterval-templateside-lckduc?file=app%2Fapp.component.ts
 \\https://azisava.sakura.ne.jp/programming/0022.html

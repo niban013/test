@@ -1,6 +1,6 @@
 https://www.c-sharpcorner.com/article/azure-blob-storage-in-c-sharp/
-using Azure.Storage.Blobs;
-
+https://blog.matrixpost.net/accessing-azure-storage-account-blobs-from-c-applications/
+https://docubear.com/c-how-to-read-and-write-to-azure-blob-storage/
 public class AzureBlobStorageService
 {
     private string connectionString = "YourStorageAccountConnectionString";

@@ -1,4 +1,110 @@
-      builder.Services.AddSingleton<IPolicyEvaluator, FakePolicyEvaluator>();
+https://www.c-sharpcorner.com/article/azure-blob-storage-in-c-sharp/
+using Azure.Storage.Blobs;
+
+public class AzureBlobStorageService
+{
+    private string connectionString = "YourStorageAccountConnectionString";
+    private BlobServiceClient blobServiceClient;
+
+    public AzureBlobStorageService()
+    {
+        blobServiceClient = new BlobServiceClient(connectionString);
+    }
+}
+C#
+Replace "YourStorageAccountConnectionString" with the connection string for your Azure Storage Account.
+
+2. Creating a Blob Container
+Now, let's create a container within the storage account.
+
+public async Task CreateContainerAsync(string containerName)
+{
+    BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+    await containerClient.CreateIfNotExistsAsync();
+}
+C#
+3. Uploading a Blob
+Here's an example of how you can upload a file (blob) to a container.
+
+public async Task UploadBlobAsync(string containerName, string blobName, string filePath)
+{
+    BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+    BlobClient blobClient = containerClient.GetBlobClient(blobName);
+
+    using FileStream fs = File.OpenRead(filePath);
+    await blobClient.UploadAsync(fs, true);
+}
+C#
+4. Downloading a Blob
+To retrieve a blob from the container, use the following method.
+
+public async Task DownloadBlobAsync(string containerName, string blobName, string downloadPath)
+{
+    BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+    BlobClient blobClient = containerClient.GetBlobClient(blobName);
+
+    BlobDownloadInfo blobDownloadInfo = await blobClient.DownloadAsync();
+
+    using FileStream fs = File.OpenWrite(downloadPath);
+    await blobDownloadInfo.Content.CopyToAsync(fs);
+}
+C#
+5. Listing Blobs in a Container
+To list all the blobs within a container, you can use the following method.
+
+public async Task<List<string>> ListBlobsAsync(string containerName)
+{
+    BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+    var blobs = new List<string>();
+
+    await foreach (BlobItem blobItem in containerClient.GetBlobsAsync())
+    {
+        blobs.Add(blobItem.Name);
+    }
+
+    return blobs;
+}
+C#
+This snippet retrieves the names of all blobs within the specified container and returns a list of strings containing the blob names.
+
+6. Deleting a Blob
+To delete a specific blob from a container.
+
+public async Task DeleteBlobAsync(string containerName, string blobName)
+{
+    BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+    BlobClient blobClient = containerClient.GetBlobClient(blobName);
+
+    await blobClient.DeleteIfExistsAsync();
+}
+C#
+This method deletes the specified blob from the container.
+
+7. Deleting a Container
+To remove an entire container from the storage account.
+
+public async Task DeleteContainerAsync(string containerName)
+{
+    BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+
+    await containerClient.DeleteIfExistsAsync();
+}
+C#
+8. Accessing Blob Metadata
+Fetching metadata associated with a specific blob.
+
+public async Task<IDictionary<string, string>> GetBlobMetadataAsync(string containerName, string blobName)
+{
+    BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+    BlobClient blobClient = containerClient.GetBlobClient(blobName);
+
+    BlobProperties properties = await blobClient.GetPropertiesAsync();
+    return properties.Metadata;
+}
+
+
+
+builder.Services.AddSingleton<IPolicyEvaluator, FakePolicyEvaluator>();
 public class FakePolicyEvaluator : IPolicyEvaluator
     {
         public virtual async Task<AuthenticateResult> AuthenticateAsync(AuthorizationPolicy policy, HttpContext context)

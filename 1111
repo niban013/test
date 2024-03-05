@@ -1,3 +1,237 @@
+using Quartz.Impl;
+using Quartz;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace task
+{
+    //    public static class QuartzConfig
+    //    {
+    //        //調度器工廠
+    //        private static ISchedulerFactory? schedulerFactory;
+    //        //調度器
+    //        private static IScheduler? scheduler;
+
+    //        public static ITrigger trigger(string type, string title, string groups = "on", string time = "5")
+    //        {
+    //            //3、創建一個觸發器(有4種觸發器供選擇)
+    //            //重複執行：WithRepeatCount(count) / RepeatForever(count)
+    //            //間格時間：WithInterval(time)
+    //            //定時執行：StartAt() / StartNow()
+    //            //設定優先：WithPriority()，default 5
+
+    //            ITrigger trigger;
+    //            switch (type)
+    //            {
+    //                case "Simple":
+    //                    #region 觸發器1：WithSimpleSchedule 
+    //                    trigger = TriggerBuilder.Create()
+    //                        .WithIdentity(title, groups)
+    //                        .WithSimpleSchedule(x => x.WithIntervalInSeconds(int.Parse(time)).RepeatForever())
+    //                        .Build();
+    //                    #endregion
+    //                    break;
+    //                case "Daily":
+    //                    #region 觸發器2：WithDailyTimeIntervalSchedule
+    //                    trigger = TriggerBuilder.Create()
+    //                        .WithIdentity(title, groups)
+    //                        .WithDailyTimeIntervalSchedule(x => x.OnEveryDay().WithIntervalInSeconds(int.Parse(time)))
+    //                        .Build();
+    //                    #endregion
+    //                    break;
+    //                case "Calendar":
+    //                    #region 觸發器3：WithCalendarIntervalSchedule
+    //                    trigger = TriggerBuilder.Create()
+    //                        .WithIdentity(title, groups)
+    //                        .WithCalendarIntervalSchedule(x => x.WithIntervalInSeconds(int.Parse(time)))
+    //                        .Build();
+    //                    #endregion
+    //                    break;
+    //                case "Cron":
+    //                default:
+    //                    #region 觸發器4：WithCronSchedule()
+    //                    trigger = TriggerBuilder.Create()
+    //                        .WithIdentity(title, groups)
+    //                        .WithCronSchedule(time)
+    //                        .Build();
+    //                    #endregion
+    //                    break;
+    //            }
+    //            return trigger;
+    //        }
+
+    //        public static async void Run(IJobDetail job, ITrigger trigger)
+    //        {
+    //            //1、創建一個調度器
+    //            schedulerFactory = new StdSchedulerFactory();
+    //            scheduler = await schedulerFactory.GetScheduler();
+    //            await scheduler.Start();
+
+    //            JobKey jobKey = new JobKey(job.Key.Name, job.Key.Group);
+    //            TriggerKey triggerKey = new TriggerKey(trigger.Key.Name, trigger.Key.Group);
+
+    //            bool exists = await scheduler.CheckExists(jobKey);
+    //            if (!exists)
+    //            {
+    //                // 該工作還沒有執行
+    //                //4、將任務與觸發器添加到調度器中
+    //                await scheduler.ScheduleJob(job, trigger);
+    //            }
+    //            //5、開始執行
+    //            await scheduler.Start();
+    //        }
+
+    //        public static void Shutdown()
+    //        {
+    //            if (scheduler != null)
+    //            {
+    //                scheduler.Shutdown(true);
+    //            }
+    //        }
+    //    }
+    //}
+    public class QuartzHelper
+    {
+        public static readonly IScheduler _scheduler;
+        static QuartzHelper()
+        {
+            //创建一个工厂
+            var schedulerFactory = new StdSchedulerFactory();
+            //启动
+            _scheduler = schedulerFactory.GetScheduler().Result;
+            //1、开启调度
+            _scheduler.Start();
+        }
+        /// <summary>
+        /// 时间间隔执行任务
+        /// </summary>
+        /// <typeparam name="T">任务类，必须实现IJob接口</typeparam>
+        /// <param name="seconds">时间间隔(单位：秒)</param>
+        public static async Task<bool> ExecuteInterval<T>(int seconds) where T : IJob
+        {
+            //2、创建工作任务
+            IJobDetail job = JobBuilder.Create<T>().WithIdentity("p1","p2").WithDescription("Say hello to Tom job")
+.Build();
+            // 3、创建触发器
+            ITrigger trigger = TriggerBuilder.Create()
+           .StartNow()
+           .WithSimpleSchedule(
+                               x => x.WithIntervalInSeconds(seconds)
+           //x.WithIntervalInMinutes(1)
+           .RepeatForever())
+           .Build();
+            _scheduler.ListenerManager.AddJobListener(new TestJobListener());
+            //4、将任务加入到任务池
+            await _scheduler.ScheduleJob(job, trigger);
+            return true;
+        }
+
+        /// <summary>
+        /// 指定时间执行任务
+        /// </summary>
+        /// <typeparam name="T">任务类，必须实现IJob接口</typeparam>
+        /// <param name="cronExpression">cron表达式，即指定时间点的表达式</param>
+        public static async Task<bool> ExecuteByCron<T>(string cronExpression) where T : IJob
+        {
+            //2、创建工作任务
+            IJobDetail job = JobBuilder.Create<T>().Build();
+            //3、创建触发器
+            ICronTrigger trigger = (ICronTrigger)TriggerBuilder.Create()
+           .StartNow()
+           .WithCronSchedule(cronExpression)
+           .Build();
+            //4、将任务加入到任务池
+            await _scheduler.ScheduleJob(job, trigger);
+            return true;
+        }
+    }
+}
+using Quartz;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace task
+{
+    public class TestJobListener : IJobListener
+    {
+        //任务监听类的名称标识
+        public string Name => "TestJob";
+
+        //任务被忽略
+        //当任务上有 [DisallowConcurrentExecution] 标记时,
+        //上一个周期结束时任务还没执行完，下一个周期时间到来了,
+        //那么下个周期会被忽略，就会触发此事件
+        public Task JobExecutionVetoed(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+            //return Task.Run(() => { Console.WriteLine("此次任务被忽略..."); });
+        }
+
+        //任务执行前触发
+        public Task JobToBeExecuted(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            //if (true)
+            //{
+            //    return Task.FromResult(true);
+            //}
+
+            //return Task.FromResult(false);
+            return Task.Run(() => { Console.WriteLine("任务即将被执行..."); });
+        }
+
+        //任务执行后触发
+        public Task JobWasExecuted(
+            IJobExecutionContext context,
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+            //return Task.Run(() => { Console.WriteLine("任务已经被执行完..."); });
+        }
+    }
+    public class JobDemo : IJob
+    {
+        public Task Execute(IJobExecutionContext context)
+        {
+            return Task.Run(() =>
+            {
+                MessageBox.Show(DateTime.Now.ToString());
+                Console.WriteLine($"111打印信息测试...， {DateTime.Now}");
+            });
+        }
+    }
+}
+   private void button6_Click(object sender, EventArgs e)
+   {
+       //JobScheduler.Start();
+       QuartzHelper.ExecuteInterval<JobDemo>(5).Wait();
+   }
+
+   private async void button7_Click(object sender, EventArgs e)
+   {
+       JobKey jobKey = new JobKey("p1", "p2");
+       var b=QuartzHelper._scheduler.CheckExists(jobKey);
+       if(!await QuartzHelper._scheduler.CheckExists(jobKey)) 
+       {
+           return;
+       }
+       await QuartzHelper._scheduler.Interrupt(jobKey);
+       //QuartzHelper._scheduler.Shutdown();
+       //JobScheduler.Stop();
+   }
+
+
+
 https://www.c-sharpcorner.com/article/azure-blob-storage-in-c-sharp/
 https://blog.matrixpost.net/accessing-azure-storage-account-blobs-from-c-applications/
 https://docubear.com/c-how-to-read-and-write-to-azure-blob-storage/

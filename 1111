@@ -1,3 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Bootstrap Example</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css" />
+
+<script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+  <style type="text/css">
+  .modal-dialog{
+            height:100%
+        }
+        .modal-content{
+            height:90%
+        }
+        .modal-body{
+            height:100%;
+            overflow:auto
+        }
+  #tblReportResultsDemographics tbody tr:nth-child(odd)  {
+
+background: grey;  /*whatever color you want*/
+
+}
+
+#tblReportResultsDemographics tbody tr:nth-child(even)  {
+
+background: white;  /*whatever color you want*/
+
+}
+ .right {
+                text-align: right;
+            }
+ .center {
+                text-align: center;
+            }
+  </style>
+
+ 
+
+ <script> 
+ $(document).ready(function(){
+var aDemoItems = [
+    {
+        "patientId":"1",
+        "otherId":"LanTest101",
+        "firstName":"x1",
+        "lastName":"yLanTest101",
+        "gender":"M",
+        "dob":"10/16/1941",
+        "race":"Caucasian/White"
+    },
+     
+    {
+        "patientId":"2",
+        "otherId":"LanTest102",
+        "firstName":"x2",
+        "lastName":"yLanTest102",
+        "gender":"M",
+        "dob":"08/10/2005",
+        "race":"Caucasian/White"
+    },
+     
+    {
+        "patientId":"3",
+        "otherId":"Test1111",
+        "firstName":"x3",
+        "lastName":"yTest1111",
+        "gender":"M",
+        "dob":"08/13/2015",
+        "race":"Native Hawaian/Pacific Islander"
+    },
+]
+ var jsonString = JSON.stringify(aDemoItems) //for testing
+ var oTblReport = $("#tblReportResultsDemographics")
+ 
+    oTblReport.DataTable ({
+         columnDefs: [
+        { targets: [1, 2], className: "right" },
+    ],
+        "data" : aDemoItems,
+        "columns" : [
+            { "data" : "patientId"  },//className: "right"
+            { "data" : "otherId" },
+            { "data" : "firstName" },
+            { "data" : "lastName" },
+            { "data" : "gender" },
+            { "data" : "dob" },
+            { "data" : "race" },
+        ]
+    });
+   $("#myModal").modal();
+});</script>
+</head>
+<body>
+
+<div class="container">
+  <h2>Here is how to load a bootstrap modal as soon as the document is ready </h2>
+  <!-- Trigger the modal with a button -->
+
+
+  <!-- Modal -->
+  <div class="modal" id="myModal" role="dialog">
+     <div class="modal-dialog modal-fullscreen" style="width: 100%;">
+    
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Modal Header</h4>
+        </div>
+        <div class="modal-body">
+         <table border="1" id="tblReportResultsDemographics" class="display nowrap cell-border" width="100%">
+
+	 <thead>
+    <tr>
+      <th class="center">patientId</th>
+      <th>otherId</th>
+ <th>firstName</th>
+      <th>lastName</th>
+ <th>gender</th>
+      <th>dob</th>
+  <th>race</th>
+    </tr>
+   	 </thead>
+   <tbody>
+    <tr>
+      <td>Row 1 Data 1</td>
+      <td>Row 1 Data 2</td>
+ <td>Row 1 Data 1</td>
+      <td>Row 1 Data 2</td>
+ <td>Row 1 Data 1</td>
+      <td>Row 1 Data 2</td>
+ <td>Row 1 Data 1</td>
+    </tr>
+    
+  </tbody>
+</table>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+</div>
+
+<script>
+$(document).ready(function(){
+   $("#myModal").modal();
+});
+</script>
+
+</body>
+</html>https://www.yogihosting.com/kubernetes-ingress-aspnet-core/
 https://lanxuexing.github.io/2020/05/03/ng-file-upload/
 https://github.com/TharakaMadhusanka/Angular-Bulk-File-Upload/tree/main
 https://nemi-chand.github.io/multiple-file-upload-in-angular-using-aspnet-core/

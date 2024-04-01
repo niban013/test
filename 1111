@@ -1,4 +1,74 @@
 <!DOCTYPE html>
+<html data-bs-theme="dark">
+   <head>
+      <title>Try v1.2 Bootstrap Online</title>
+      <link href="https://www.tutorialspoint.com/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+      <script src="https://www.tutorialspoint.com/bootstrap/scripts/jquery.min.js"></script>
+      <script src="https://www.tutorialspoint.com/bootstrap/js/bootstrap.min.js"></script>
+    <style>
+    @media (prefers-color-scheme: dark) {
+     
+      body {
+        background-color: #1B1B1B;
+        color: #E7E8EB;
+      }
+      a {
+        color: #3387CC;
+      }
+ .panel-body{
+        background-color: #1B1B1B;
+        color: #E7E8EB;
+      }
+    }
+  </style> 
+</head>
+   <body>
+      <div class="panel panel-primary">
+         <div class="panel-heading">
+            <h3 class="panel-title">Panel title</h3>
+         </div>
+         <div class="panel-body">
+            This is a Basic panel
+   This is a Basic panel</br>
+     This is a Basic panel</br>
+   This is a Basic panel</br>
+         </div>
+      </div>
+      <div class="panel panel-success">
+         <div class="panel-heading">
+            <h3 class="panel-title">Panel title</h3>
+         </div>
+         <div class="panel-body">
+            This is a Basic panel
+         </div>
+      </div>
+      <div class="panel panel-info">
+         <div class="panel-heading">
+            <h3 class="panel-title">Panel title</h3>
+         </div>
+         <div class="panel-body">
+            This is a Basic panel
+         </div>
+      </div>
+      <div class="panel panel-warning">
+         <div class="panel-heading">
+            <h3 class="panel-title">Panel title</h3>
+         </div>
+         <div class="panel-body">
+            This is a Basic panel
+         </div>
+      </div>
+      <div class="panel panel-danger">
+         <div class="panel-heading">
+            <h3 class="panel-title">Panel title</h3>
+         </div>
+         <div class="panel-body">
+            This is a Basic panel
+         </div>
+      </div> 
+   </body>
+</html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <title>Bootstrap Example</title>

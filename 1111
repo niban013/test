@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Net.Sockets;
 using tool;
 using static tool.Helper;
-
+https://neilmenon.com/blog/angular-rxjs-limit-concurrent-http-requests/
 try
 {
     HttpClientHandler httpClientHandler = new HttpClientHandler()

@@ -1,3 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Bootstrap Example</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css" />
+
+<script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+  <style type="text/css">
+  .modal-dialog{
+            height:100%
+        }
+        .modal-content{
+            height:90%
+        }
+        .modal-body{
+            height:100%;
+            overflow:auto
+        }
+  #tblReportResultsDemographics tbody tr:nth-child(odd)  {
+
+background: grey;  /*whatever color you want*/
+
+}
+
+#tblReportResultsDemographics tbody tr:nth-child(even)  {
+
+background: white;  /*whatever color you want*/
+
+}
+ .right {
+                text-align: right;
+            }
+ .center {
+                text-align: center;
+            }
+  </style>
+
+ 
+
+ <script> 
+ $(document).ready(function(){
+var aDemoItems = [
+    {
+        "patientId":"1",
+        "otherId":"LanTest101",
+        "firstName":"x1",
+        "lastName":"yLanTest101",
+        "gender":"M",
+        "dob":"10/16/1941",
+        "race":"Caucasian/White"
+    },
+     
+    {
+        "patientId":"2",
+        "otherId":"LanTest102",
+        "firstName":"x2",
+        "lastName":"yLanTest102",
+        "gender":"M",
+        "dob":"08/10/2005",
+        "race":"Caucasian/White"
+    },
+     
+    {
+        "patientId":"3",
+        "otherId":"Test1111",
+        "firstName":"x3",
+        "lastName":"yTest1111",
+        "gender":"M",
+        "dob":"08/13/2015",
+        "race":"Native Hawaian/Pacific Islander"
+    },
+]
+ var jsonString = JSON.stringify(aDemoItems) //for testing
+
+  var table = $('#example').DataTable({
+    
+         columnDefs: [
+        { targets: [1, 2], className: "right" },
+    ],
+        "data" : aDemoItems,
+        "columns" : [
+            { "data" : "patientId"  },//className: "right"
+            { "data" : "otherId" },
+            { "data" : "firstName" },
+            { "data" : "lastName" },
+            { "data" : "gender" },
+            { "data" : "dob" },
+            { "data" : "race",
+ 'render': function (data, type, row, meta)
+                             {
+                                 return '<a>'+data+' </a>'
+                             }
+ },
+        ]
+    });
+ $('#example').on('click', 'tbody tr td a', function () {
+  var row = table.row($(this)).data();
+alert('Row ' + $(this).closest("tr").index());
+            alert('Column ' + $(this).closest("td").index());
+  console.log(row);   //full row of array data
+$('#myModal').modal('show');
+
+});
+
+});
+
+ 
+</script>
+</head>
+<body>
+
+<div class="container">
+  <h2>Here is how to load a bootstrap modal as soon as the document is ready </h2>
+  <!-- Trigger the modal with a button -->
+ <table id="example" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Office</th>
+                <th>Age</th>
+                <th>Start date</th>
+                <th>Salary</th>  <th>Salary</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>  <td></td>
+            </tr>
+   
+        </tbody>
+       
+    </table>
+
+  <!-- Modal -->
+  <div class="modal" id="myModal" role="dialog">
+     <div class="modal-dialog modal-fullscreen" style="width: 100%;">
+    
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Modal Header</h4>
+        </div>
+        <div class="modal-body">
+         
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+</div>
+
+<script>
+$(document).ready(function(){
+  // $("#myModal").modal();
+});
+</script>
+
+</body>
+</html>
+
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Sockets;
 using tool;

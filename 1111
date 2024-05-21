@@ -1,3 +1,40 @@
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Serilog;
+using WorkerService1;
+Log.Logger = new LoggerConfiguration()
+
+                .MinimumLevel.Debug()
+
+                .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+
+                .Enrich.FromLogContext()
+
+                .WriteTo.File(@"C:\a\test.txt")
+
+                .CreateLogger();
+IHost host = Host.CreateDefaultBuilder(args).UseWindowsService()
+    .ConfigureServices(services =>
+    {
+        services.AddHostedService<Worker>();
+        services.AddHealthChecks();//.AddCheck<DbHealthCheck>(nameof(DbHealthCheck));
+
+        services.Configure<HealthCheckPublisherOptions>(options =>
+        {
+            // 初回の health check / publish  を起動から 5 秒遅延させる
+            options.Delay = TimeSpan.FromSeconds(5);
+            // 30 秒毎に health check / publish をする
+            options.Period = TimeSpan.FromSeconds(30);
+        });
+
+    // HealthCheckPublisherOptions により定期的に health check が走り
+    // その結果が IHealthCheckPublisher.PublishAsync(...) に渡される
+    //services.AddSingleton<IHealthCheckPublisher, HealthCheckPublisher>();
+    services.AddSingleton<IHealthCheckPublisher, DbHealthCheckPublisher>();// _ => new HealthCheckPublisher(coolAppOptions));
+    }).UseSerilog()
+    .Build();
+
+host.Run();
+
 https://blog.devart.com/how-to-implement-health-checks-in-asp-net-6.html
 https://www.chaiandwine.info/2020/12/worker-service.html
 <!DOCTYPE html>

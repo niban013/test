@@ -1,3 +1,5 @@
+https://medium.com/@sawyer.watts/a-beginners-guide-to-net-s-hostbuilder-part-3-configurations-and-environments-61a8b7c1867a
+
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 using WorkerService1;

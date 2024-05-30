@@ -1,3 +1,38 @@
+$("#win1").kendoWindow({
+    width: "300px",
+    height: "100px",
+    modal: true,
+    title: "Window 1",
+    visible: false
+});
+$("#open1").click(function () {
+    $("#win1").data("kendoWindow").open();
+});
+$("#open2").click(function () {
+ $.ajax({
+                     url: 'https://jsonplaceholder.typicode.com/todos/1', // Sample API endpoint
+                     method: 'GET',
+                     dataType: 'json',
+                     success: function(data) {
+                     // Update the content on success
+                   //  $("#dataContainer").text('Title: ' + data.title);
+                     console.log(data.title)
+                      $("#win1").data("kendoWindow").close()
+                     },
+                     error: function(error) {
+                     // Handle errors
+                   alert('Error:');
+                     }
+                 });
+ 
+});
+
+<button type="button" id="open1">Open first Window</button>
+<div id="win1">
+    <p>First Window</p>
+    <button type="button" id="open2">Open second Window</button>
+</div>
+https://jsfiddle.net/ZnuE3/
 https://medium.com/@sawyer.watts/a-beginners-guide-to-net-s-hostbuilder-part-3-configurations-and-environments-61a8b7c1867a
 https://jsfiddle.net/mrrodd/7Yez3/
 https://jsfiddle.net/chanaka1/ZZ75B/

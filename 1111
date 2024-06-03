@@ -1,3 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Kendo UI Snippet</title>
+
+      <link rel="stylesheet" href="https://kendo.cdn.telerik.com/themes/8.0.1/default/default-main.css" />
+
+        <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+        <script src="https://kendo.cdn.telerik.com/2024.2.514/js/kendo.all.min.js"></script>
+</head>
+<body>
+  
+<div id='window1'>
+    This is the 1st Window.  It should be modal, but since I dynamically created a second window, the overlay got hidden, even though I have not opened the 2nd window yet.
+    <br/>
+<span id="button2" class="k-button">Open 2nd Window</span>
+</div>
+ 
+<span id="button1" class="k-button">Open 1st Window</span>
+
+<script>
+$(document).ready(function() {
+var ajaxGet
+    window1 = $('#window1');
+    window1.hide();
+    window2 = $('#window2');
+    window2.hide();
+var live =false
+    $('#button1').click(function() {
+        if (!window1.data("kendoWindow")) {
+            window1.kendoWindow({
+                width: "300px",
+                visible: false,
+                modal: true,
+       close: function (e) {
+if(live){
+   e.preventDefault();
+}
+         //ajaxGet.abort();
+        },
+            });
+        }
+        window1.show();
+        window1.data("kendoWindow").open();
+
+      
+    });
+  $('#button2').click(function() { kendo.ui.progress.messages = {
+        loading: "Processing..."
+    };
+            kendo.ui.progress(window1, true);
+live =true
+setTimeout(() =>  {kendo.ui.progress(window1, false);live =false;
+ window1.data("kendoWindow").close();
+
+}, 5000)
+          // ajaxGet = $.get("https://example.com/",{id:1},function(data){
+          // if(data.length == 0) return true;
+ 
+          // });
+           
+
+            });
+});
+</script>
+</body>
+</html>
 $("#win1").kendoWindow({
     width: "300px",
     height: "100px",

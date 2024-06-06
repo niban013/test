@@ -1,3 +1,179 @@
+https://www.codeproject.com/Questions/852696/Global-asax-Response-Redirect-from-iframe-to-paren
+https://ktanx.com/blog/p/854
+https://joshinsky.blogspot.com/2018/04/cnet_46.html
+C#.NET 刷新頁面的六種方法
+
+
+
+ASP.NET刷新頁面的六種方法
+
+
+第一：
+ private void Button1_Click( object sender, System.EventArgs e )　　
+ {
+　　　　 Response.Redirect( Request.Url.ToString( ) );
+ }
+
+
+第二：
+ private void Button2_Click( object sender, System.EventArgs e )　　
+ {
+　　　　 Response.Write( "
+　　　　   <script language=javascript>window.location.href=document.URL;
+　　　　  </script>" );
+ }
+
+
+第三：
+ private void Button3_Click( object sender, System.EventArgs e )　　
+ {
+　　　　 Response.AddHeader( "Refresh","0" );
+ }
+
+
+第四：
+ private void Button6_Click( object sender, System.EventArgs e )　　
+ {
+　　　　 //好像有些不對？
+　　　　 //Response.Write( "
+　　　　 <script language=javascript>window.location.reload( );
+　　　　 </script>" );
+ }
+
+
+
+第五：(需替換<>)
+ <script><!--
+ var limit="3:00"
+  if ( document.images )
+ {
+　　　　 var parselimit=limit.split( ":" )parselimit=parselimit[0]*60+parselimit[1]*1
+ }
+ function beginrefresh( )
+ {
+　　　　 if ( !document.images )returnif ( parselimit==1 )window.location.reload( )else
+　　　　  {
+　　　　　　　　 parselimit-=1curmin=Math.floor( parselimit/60 )cursec=parselimit%60if ( curmin!=0 )curtime=curmin+"分"+cursec+"秒後重刷本頁！"elsecurtime=cursec+"秒後重刷本頁！"window.status=curtimesetTimeout( "beginrefresh( )",1000 )
+　　　　  }
+ }
+ window.onload=beginrefresh//-->　　 </script>
+ <DIV style="Z-INDEX: 102;
+ LEFT: 408px;
+ POSITION: absolute;
+ TOP: 232px" ms_positioning="text2D">
+ <P><FONT size="3">自動刷新頁面</FONT></P>
+ </DIV>
+
+
+第六：
+ <meta http-equiv="refresh" content="300;
+  url=target.html">
+  用window.location.href實現刷新另個框架頁面 （轉載自 仰天一笑）
+　　  在寫ASP.Net程序的時候，我們經常遇到跳轉頁面的問題，我們經常使用Response.Redirect ，如果客戶要在跳轉的時候使用提示，這個就不靈光了，如：
+ Response.Write("<script>alert('恭喜您，注冊成功！');</script>");
+ Response.Redirect("main.html");
+　　  這時候我們的提示內容沒有出來就跳轉了，和Response.Redirect("main.html");沒有任何區別。
+　　  這時我們采用下面代碼試驗一下：
+ Response.Write("<script language=javascript>alert('恭喜您，注冊成功！')</script>");
+ Response.Write("<script language=javascript>window.location.href='main.html'</script>");
+　　  這個即實現了我們的要求，在提示後，跳轉頁面。
+　　  最重要的是window.location.href 語句可以實現一個框架的頁面在執行服務器端代碼後刷新另一個框架的頁面(Response.Redirect無法達到，至少我沒有發現)：
+　　  如：index.htm頁面中有二個框架，分別? frameLeft和frameRight，在frameRight頁面中執行服務器端代碼後刷新frameLeft中的頁面。
+　　  先前最常見的是注冊之後，自動刷新登?框，讓登?框換成已登?頁面，只要在注冊成功的代碼之後加上一段，即可以實現刷新另個框架的頁面。代碼如下：
+ Response.Write("<script language=javascript>alert('恭喜您，注冊成功！')</script>");
+ Response.Write("<script language=javascript>window.parent.frameLeft.location.href='main.html'</script>");
+
+ 自動刷新頁面的實現方法總結:
+　　 1)
+　　  <meta http-equiv="refresh"content="10;url=跳轉的頁面">
+　　   10表示間隔10秒刷新一次
+　　 2)
+  <script language=''javascript''>
+  window.location.reload(true);
+  </script>
+　　  如果是你要刷新某一個iframe就把window?換成frame的名字或ID號
+　　 3)
+  <script language=''javascript''>
+  window.navigate("本頁面url");
+  </script>
+　　 4)
+  function abc()
+  {
+   window.location.href="/blog/window.location.href";
+   setTimeout("abc()",10000);
+  }
+　　 刷新本頁：
+　　  Response.Write("<script language=javascript>window.location.href=window.location.href;</script>")
+　　 刷新父頁：
+　　  Response.Write("<script language=javascript>opener.location.href=opener.location.href;</script>")
+　　 轉到指定頁:
+　　  Response.Write("<script language=javascript>window.location.href='yourpage.aspx';</script>")
+　　 刷新頁面實現方式總結(HTML,ASP,JS)
+　　  'by aloxy
+　　 定時刷新：
+　　  1，<script>setTimeout("location.href='url'",2000)</script>
+　　   說明：url是要刷新的頁面URL地址
+　　         2000是等待時間=2秒，
+　　  2，<meta name="Refresh" content="n;url">
+ 說明：
+　　   n is the number of seconds to wait before loading the specified URL.
+　　    url is an absolute URL to be loaded.
+　　   n,是等待的時間，以秒?單位
+　　   url是要刷新的頁面URL地址
+　　  3，<%response.redirect url%>
+　　 說明： 一般用一個url?數或者表單傳值判斷是否發生某個操作，然後利用response.redirect 刷新。
+　　  4，刷新框架頁
+　　   〈script language=javascript>top.leftFrm.location.reload();parent.frmTop.location.reload();</script〉
+　　   彈出窗體後再刷新的問題
+  Response.Write("<script>window.showModalDialog('../OA/SPCL.aspx',window,'dialogHeight: 300px; dialogWidth: 427px; dialogTop: 200px; dialogLeft: 133px')</script>");//open
+　　　　　　　　　　　　 Response.Write("<script>document.location=document.location;</script>");
+　　  在子窗體頁面代碼head中加入<base target="_self"/>
+　　  刷新的內容加在　　　 if (!IsPostBack) 中
+　　  在框架頁中右面刷新左面　
+　　　   //刷新框架頁左半部分
+　　　   Response.Write("<script language=javascript>");
+　　　    Response.Write("parent.left.location.href='PayDetailManage_Left.aspx'");
+　　　    Response.Write("</script>");
+　　  頁面定時刷新功能實現
+　　  有三種方法：
+　　   1，在html中設置：
+　　    <title>xxxxx</title>之後加入下面這一行即可！
+    定時刷新：<META HTTP-EQUIV="Refresh" content="10">
+　　    10代表刷新間隔,單位?秒
+　　   2.jsp
+　　    <% response.setHeader("refresh","1"); %>
+　　     每一秒刷新一次
+　　   3.使用javascript:
+    <script language="javascript">
+    setTimeout("self.location.reload();",1000);
+    <script>
+　　     一秒一次
+　　  頁面自動跳轉：
+　　1，在html中設置：
+　　<title>xxxxx</title>之後加入下面這一行即可！
+　　定時跳轉並刷新：<meta http-equiv="refresh" content="20;url=http://自己的URL">,
+　　其中20指隔20秒後跳轉到http://自己的URL 頁面。
+　　點擊按鈕提交表單後刷新上級窗口
+　　A窗口打開B窗口
+　　然後在B裏面提交數據至C窗口
+　　最後要刷新A窗口
+　　並且關閉B窗口
+　　幾個javascript函數
+　　//第一個自動關閉窗口
+ <script language="javascript">
+ <!--
+ function clock(){i=i-1
+ document.title="本窗口將在"+i+"秒後自動關閉!";
+ if(i>0)setTimeout("clock();",1000);
+ else self.close();}
+ var i=2
+ clock();
+ //-->
+ </script>
+　　 //第二個刷新父頁面的函數
+ <script language="javascript">
+ opener.location.reload();
+ </script>
 <!DOCTYPE html>
 <html>
 <head>

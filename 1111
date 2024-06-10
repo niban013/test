@@ -1,3 +1,89 @@
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="WebForm1.aspx.cs" Inherits="webtest.WebForm1" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title></title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+    <script type="text/javascript">
+        //function receiveMessage(event) {
+        //    if (event.origin !== "http://b.com:8080") {
+        //        alert('来源不可信:' + event.origin);
+        //        return;
+        //    }
+        //    alert(event.data);
+        //}
+
+        //window.addEventListener("message", receiveMessage, false);
+     
+        $(function () {
+            window.addEventListener('message', function (event) {
+                document.getElementById('message').innerHTML = "收到" + event.origin + "消息：" + event.data;
+
+                document.getElementById('calendar').src = 'http://localhost/webtest/WebForm2.aspx';
+
+            }, false);
+            //window.addEventListener('message', (e) => {
+            //    alert(e.data)
+            //    console.log(e);
+            //})
+            //$(document).on('eventhandler', function () {
+            //    alert('parent')
+            //  //  $('#myModal').modal('hide');
+            //});
+        });
+      
+    </script>
+<%--<script>
+    $(function () {
+        $(document).on('eventhandler', function () {
+            $('#myModal').modal('hide');
+        });
+    });
+</script>--%>
+</head>
+   
+<body>
+    <form id="form1" runat="server">
+        <div>    
+            <div id="message"></div>
+            <iframe id="calendar"  src="http://localhost:51240/WebForm1.aspx?x=1&y=2" title="description"></iframe>
+            <asp:ListBox ID="ListBox1" runat="server"></asp:ListBox>
+            <asp:CheckBox ID="CheckBox1" runat="server" />
+        </div>
+    </form>
+</body>
+</html>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="WebForm1.aspx.cs" Inherits="wstest.WebForm1" %>
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title></title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+ <script type="text/javascript">
+     function clicktest() {
+         alert('p')
+         window.parent.postMessage("message",'*')
+       //  parent.$(parent.document).trigger('eventhandler');
+     }; 
+ </script>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div>    
+        
+            <asp:Button ID="Button1" runat="server" OnClick="Button1_Click" Text="Button" />
+        </div>
+    </form>
+</body>
+</html>
+   ScriptManager.RegisterStartupScript(Page, GetType(), "clicktest", "<script>clicktest()</script>", false);
+
 https://www.codeproject.com/Questions/852696/Global-asax-Response-Redirect-from-iframe-to-paren
 https://ktanx.com/blog/p/854
 https://joshinsky.blogspot.com/2018/04/cnet_46.html

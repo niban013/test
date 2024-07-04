@@ -1,3 +1,53 @@
+https://www.cnblogs.com/chongxs/p/17982229/alpine-k8s-kubeadm
+https://blog.csdn.net/weixin_50580906/article/details/136622608
+
+fetch http://mirrors.aliyun.com/alpine/v3.20/main/x86_64/APKINDEX.tar.gz
+fetch http://mirrors.aliyun.com/alpine/v3.20/community/x86_64/APKINDEX.tar.gz
+fetch http://mirrors.aliyun.com/alpine/edge/main/x86_64/APKINDEX.tar.gz
+fetch http://mirrors.aliyun.com/alpine/edge/community/x86_64/APKINDEX.tar.gz
+fetch http://mirrors.aliyun.com/alpine/edge/testing/x86_64/APKINDEX.tar.gz
+
+
+apk update
+apk add alpine-conf 
+echo "br_netfilter" > /etc/modules-load.d/k8s.conf
+modprobe br_netfilter
+
+echo  1 > /proc/sys/net/ipv4/ip_forward
+apk add cni-plugin-flannel
+
+apk add cni-plugin-flannel
+apk add flannel
+apk add flannel-contrib-cni&&
+apk add cni-plugins&&
+apk add kubelet&&
+apk add kubeadm&&
+apk add kubectl&&
+apk add uuidgen&&
+apk add containerd&&
+apk add containerd-ctr
+
+swapoff -a
+sed -i "s|.*swap.*|#&|" /etc/fstab
+mount --make-rshared /
+cat  > /etc/local.d/sharemetrics.start <<"EOF"
+mount --make-rshared /
+EOF
+chmod +x /etc/local.d/sharemetrics.start
+
+rc-update add local
+uuidgen > /etc/machine-id
+rc-update add containerd
+rc-update add kubelet
+rc-service containerd start
+
+cat >> /etc/sysctl.conf <<"EOF"
+
+net.bridge.bridge-nf-call-iptables=1
+net.ipv4.ip_forward= 1
+EOF
+
+sysctl -p
 https://www.insidentally.com/articles/000035/
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="WebForm1.aspx.cs" Inherits="webtest.WebForm1" %>
 https://medium.com/@Madge_88122/mac-%E7%92%B0%E5%A2%83%E8%A8%AD%E5%AE%9A-minikube%E7%92%B0%E5%A2%83-722c2580914a

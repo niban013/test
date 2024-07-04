@@ -1,6 +1,6 @@
 https://www.cnblogs.com/chongxs/p/17982229/alpine-k8s-kubeadm
 https://blog.csdn.net/weixin_50580906/article/details/136622608
-
+https://www.cnblogs.com/davis12/p/15127387.html
 fetch http://mirrors.aliyun.com/alpine/v3.20/main/x86_64/APKINDEX.tar.gz
 fetch http://mirrors.aliyun.com/alpine/v3.20/community/x86_64/APKINDEX.tar.gz
 fetch http://mirrors.aliyun.com/alpine/edge/main/x86_64/APKINDEX.tar.gz

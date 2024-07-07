@@ -1,0 +1,145 @@
+http://alpine.ccns.ncku.edu.tw/alpine/v3.20/main
+http://mirrors.aliyun.com/alpine/v3.20/main
+http://mirrors.aliyun.com/alpine/v3.20/community
+http://mirrors.aliyun.com/alpine/edge/main
+http://mirrors.aliyun.com/alpine/edge/community
+http://mirrors.aliyun.com/alpine/edge/testing
+
+apk update
+apk add alpine-conf 
+echo "br_netfilter" > /etc/modules-load.d/k8s.conf
+modprobe br_netfilter
+
+echo  1 > /proc/sys/net/ipv4/ip_forward
+apk add cni-plugin-flannel&&
+apk add flannel&&
+apk add flannel-contrib-cni&&
+apk add cni-plugins&&
+apk add kubelet&&
+apk add kubeadm&&
+apk add kubectl&&
+apk add uuidgen&&
+apk add containerd&&
+apk add containerd-ctr
+
+swapoff -a
+sed -i "s|.*swap.*|#&|" /etc/fstab
+mount --make-rshared /
+cat  > /etc/local.d/sharemetrics.start <<"EOF"
+mount --make-rshared /
+EOF
+chmod +x /etc/local.d/sharemetrics.start
+rc-update add local
+uuidgen > /etc/machine-id
+rc-update add containerd
+rc-update add kubelet
+rc-service containerd start
+
+cat >> /etc/sysctl.conf <<"EOF"
+
+net.bridge.bridge-nf-call-iptables=1
+net.ipv4.ip_forward= 1
+EOF
+
+sysctl -p
+VBoxManage internalcommands sethduuid "C:\_VMs\SC9u1\sc9u1.vdi"
+kubeadm init --apiserver-advertise-address=192.168.0.3 --pod-network-cidr=10.244.0.0/16
+
+mkdir -p $HOME/.kube
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
+export KUBECONFIG=/etc/kubernetes/admin.conf
+
+kubeadm join 192.168.0.3:6443 --token af0ojj.hrafn95381h2fd12 \
+        --discovery-token-ca-cert-hash sha256:c7c15bcbaa18dff05efddb153b06aa33b753cd3058bae4404cc3b96d4347b7be
+kubectl apply -f https://mirror.ghproxy.com/https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+ 
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/baremetal/deploy.yaml
+https://www.aneasystone.com/archives/2023/11/kubernetes-traffic-management-ingress.html
+kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.2/cert-manager.yaml
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/baremetal/deploy.yaml
+
+
+https://www.cnblogs.com/wangguishe/p/17434752.html
+kubectl get pods -n ingress-nginx
+kubectl get services -n ingress-nginx
+kubectl -n ingress-nginx get ingressclasses
+kubectl get deployment,svc,pod -n ingress-nginx
+
+kubectl describe pod -n kube-system kube-flannel-ds-l5ttr
+kubectl apply -f /etc/apk/test2.yaml
+kubectl apply -f /etc/apk/ingress.yaml
+
+kubectl get validatingwebhookconfigurations
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+
+
+kubectl logs kube-flannel-ds-sc7jl
+
+kubectl describe nodes master |grep Taints
+kubectl taint node master node-role.kubernetes.io/control-plane-
+
+
+kubectl create deployment nginx --image=nginx
+ kubectl expose deployment nginx --port=80 --type=NodePort
+ kubectl get pod,svc -A
+curl foo.bar.com:32332
+
+
+kubectl get node,svc,pod,ds -A -o wide
+
+
+kubectl describe ingress ingress-nginx-controller-86d7fd9686-prhbs 
+
+kubectl describe ingress nginx-ingress-controller
+
+kubectl describe pod -n ingress-nginx ingress-nginx-controller-86d7fd9686-prhbs
+kubectl exec -n ingress-nginx -ti ingress-nginx-controller-86d7fd9686-prhbs -- /bin/sh
+cat nginx.conf
+kubectl describe pod ingress-nginx-controller-5685456fbb-6xr4j  -n ingress-nginx
+
+
+
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -F
+iptables -t nat -F
+apiVersion: networking.k8s.io/v1beta
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  name: example
+  namespace: foo
+spec:
+  rules:
+    - host: foo2.bar.com
+      http:
+        paths:
+          - backend:
+              serviceName: svc-demo
+              servicePort: 8080
+            path: /
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: foo2.bar.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: svc-demo
+                port:
+                  number: 8080

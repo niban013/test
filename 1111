@@ -6,7 +6,7 @@ fetch http://mirrors.aliyun.com/alpine/v3.20/community/x86_64/APKINDEX.tar.gz
 fetch http://mirrors.aliyun.com/alpine/edge/main/x86_64/APKINDEX.tar.gz
 fetch http://mirrors.aliyun.com/alpine/edge/community/x86_64/APKINDEX.tar.gz
 fetch http://mirrors.aliyun.com/alpine/edge/testing/x86_64/APKINDEX.tar.gz
-
+https://www.cnblogs.com/xunweidezui/p/16615345.html
 
 apk update
 apk add alpine-conf 

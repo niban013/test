@@ -1,3 +1,13 @@
+nameTextStyle: {
+        color: '#333',     // 坐标轴名称的颜色
+        fontStyle: 'normal',    // 文字字体的风格（'normal'，无样式；'italic'，斜体；'oblique'，倾斜字体） 
+        fontWeight: 'normal',    // 文字字体的粗细（'normal'，无样式；'bold'，加粗；'bolder'，加粗的基础上再加粗；'lighter'，变细；数字定义粗细也可以，取值范围100至700）
+        fontSize: '20',    // 文字字体大小
+        align: 'left',     // 文字水平对齐方式，默认自动（'left'，'center'，'right'）
+        verticalAlign: 'left',    // 文字垂直对齐方式，默认自动（'top'，'middle'，'bottom'
+        lineHeight: '50',    // 行高 ）
+        backgroundColor: 'red',    // 文字块背景色，例：'#123234', 'red', 'rgba(0,23,11,0.3)'
+    },
 https://weng-albert.medium.com/metallb-%E7%99%BB%E5%A0%B4-%E7%84%A1%E7%B8%AB%E9%83%A8%E7%BD%B2-b31d69f9fe99
 https://www.thewindowsclub.com/how-to-add-a-folder-to-this-pc-in-windows
 https://www.cnblogs.com/chongxs/p/17982229/alpine-k8s-kubeadm

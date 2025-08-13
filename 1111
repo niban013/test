@@ -1,3 +1,89 @@
+using System;
+using System.Collections.Concurrent;
+using System.Data.SqlClient;
+using System.Text;
+using System.Threading.Tasks;
+
+class Program
+{
+    static void Main()
+    {
+        string connString = "Server=.;Database=TestDB;Trusted_Connection=True;";
+
+        // 使用 ConcurrentBag（執行緒安全集合）
+        ConcurrentBag<string> sqlCommands = new ConcurrentBag<string>();
+
+        int totalItems = 1000;
+        int batchSize = 200; // 每批送的筆數
+
+        // 平行產生 SQL 語法
+        Parallel.For(0, totalItems, new ParallelOptions { MaxDegreeOfParallelism = 8 }, i =>
+        {
+            if (i % 2 == 0)
+            {
+                // Insert 語法
+                string insertSql = $"INSERT INTO dbo.Users (Id, Name) VALUES ({i}, 'User_{i}')";
+                sqlCommands.Add(insertSql);
+            }
+            else
+            {
+                // Update 語法
+                string updateSql = $"UPDATE dbo.Users SET Name = 'Updated_{i}' WHERE Id = {i - 1}";
+                sqlCommands.Add(updateSql);
+            }
+        });
+
+        Console.WriteLine($"共產生 {sqlCommands.Count} 筆 SQL 語法");
+
+        // 分批送出
+        ExecuteInBatches(sqlCommands, connString, batchSize);
+
+        Console.WriteLine("批次執行完成！");
+    }
+
+    static void ExecuteInBatches(ConcurrentBag<string> commands, string connString, int batchSize)
+    {
+        using (var conn = new SqlConnection(connString))
+        {
+            conn.Open();
+
+            var batch = new StringBuilder();
+            int count = 0;
+
+            foreach (var cmd in commands)
+            {
+                batch.AppendLine(cmd + ";");
+                count++;
+
+                if (count >= batchSize)
+                {
+                    RunBatch(batch.ToString(), conn);
+                    batch.Clear();
+                    count = 0;
+                }
+            }
+
+            // 最後剩下的批次
+            if (count > 0)
+            {
+                RunBatch(batch.ToString(), conn);
+            }
+        }
+    }
+
+    static void RunBatch(string sqlBatch, SqlConnection conn)
+    {
+        using (var cmd = new SqlCommand(sqlBatch, conn))
+        {
+            cmd.ExecuteNonQuery();
+        }
+    }
+}
+
+
+
+
+
 https://blog.csdn.net/hongji06/article/details/126952809
 
 

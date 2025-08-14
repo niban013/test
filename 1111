@@ -1,4 +1,127 @@
 using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Oracle.ManagedDataAccess.Client;
+
+public class BatchData<T>
+{
+    public int BatchNumber { get; set; }
+    public List<T> Data { get; set; }
+}
+
+public class MyData
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+}
+
+class Program
+{
+    private const string ConnectionString = "User Id=xxx;Password=xxx;Data Source=xxx";
+    private static readonly object LogLock = new object(); // 避免多執行緒同時寫檔衝突
+
+    static void Main()
+    {
+        var allData = Enumerable.Range(1, 105)
+                                .Select(i => new MyData { Id = i, Name = $"Name_{i}" })
+                                .ToList();
+
+        var batches = allData
+            .Select((item, index) => new { item, index })
+            .GroupBy(x => x.index / 20)
+            .Select(g => new BatchData<MyData>
+            {
+                BatchNumber = g.Key + 1,
+                Data = g.Select(x => x.item).ToList()
+            })
+            .ToList();
+
+        Parallel.ForEach(batches, new ParallelOptions { MaxDegreeOfParallelism = 4 }, batch =>
+        {
+            Log($"開始處理第 {batch.BatchNumber} 批，共 {batch.Data.Count} 筆資料");
+
+            bool success = false;
+            int retryCount = 0;
+            int maxRetries = 3;
+
+            while (!success && retryCount < maxRetries)
+            {
+                try
+                {
+                    InsertOrUpdateBatch(batch);
+                    success = true;
+                }
+                catch (Exception ex)
+                {
+                    retryCount++;
+                    Log($"第 {batch.BatchNumber} 批失敗 (第 {retryCount} 次重試)：{ex.Message}");
+                    Thread.Sleep(2000);
+                }
+            }
+
+            if (!success)
+            {
+                Log($"第 {batch.BatchNumber} 批最終失敗，請檢查資料");
+            }
+            else
+            {
+                Log($"第 {batch.BatchNumber} 批處理完成");
+            }
+        });
+
+        Log("全部批次完成");
+    }
+
+    private static void InsertOrUpdateBatch(BatchData<MyData> batch)
+    {
+        using (var conn = new OracleConnection(ConnectionString))
+        {
+            conn.Open();
+
+            using (var cmd = conn.CreateCommand())
+            {
+                var values = string.Join(" UNION ALL ",
+                    batch.Data.Select(d =>
+                        $"SELECT {d.Id} AS ID, '{d.Name}' AS NAME, {batch.BatchNumber} AS BATCH_NO FROM DUAL"));
+
+                cmd.CommandText = $@"
+                    MERGE INTO MY_TABLE t
+                    USING (
+                        {values}
+                    ) src
+                    ON (t.ID = src.ID)
+                    WHEN MATCHED THEN
+                        UPDATE SET t.NAME = src.NAME, t.BATCH_NO = src.BATCH_NO
+                    WHEN NOT MATCHED THEN
+                        INSERT (ID, NAME, BATCH_NO)
+                        VALUES (src.ID, src.NAME, src.BATCH_NO)";
+
+                Log($"第 {batch.BatchNumber} 批 SQL：\n{cmd.CommandText}");
+
+                cmd.ExecuteNonQuery();
+            }
+        }
+    }
+
+    private static void Log(string message)
+    {
+        lock (LogLock)
+        {
+            string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+            if (!Directory.Exists(logDir))
+                Directory.CreateDirectory(logDir);
+
+            string logFile = Path.Combine(logDir, $"BatchLog_{DateTime.Now:yyyyMMdd}.txt");
+            File.AppendAllText(logFile, $"{DateTime.Now:HH:mm:ss} {message}{Environment.NewLine}");
+        }
+    }
+}
+
+using System;
 using System.Collections.Concurrent;
 using System.Data.SqlClient;
 using System.Text;

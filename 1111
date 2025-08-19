@@ -1,3 +1,31 @@
+
+#!/bin/bash
+# ========= 參數設定 =========
+OLD_REPO_URL="https://oldserver.com/your-repo.git"
+NEW_REPO_URL="https://newserver.com/your-repo.git"
+BRANCH_NAME="featureA"
+
+# ========= 開始搬遷 =========
+echo "🚀 Clone $BRANCH_NAME from $OLD_REPO_URL ..."
+git clone -b $BRANCH_NAME --single-branch $OLD_REPO_URL temp-repo
+
+cd temp-repo || exit 1
+
+echo "🔗 連接到新 remote: $NEW_REPO_URL ..."
+git remote remove origin
+git remote add origin $NEW_REPO_URL
+
+echo "📤 Push $BRANCH_NAME 到新 server ..."
+git push -u origin $BRANCH_NAME
+
+echo "✅ 完成！請到新 server 檢查 log:"
+git log --oneline --graph --decorate --all
+
+
+
+
+
+
 using System;
 using System.Collections.Generic;
 using System.Data;

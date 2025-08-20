@@ -1,4 +1,35 @@
+3️⃣ 設定 default branch = develop
+# 讓本地端 origin/HEAD 指向 develop
+git remote set-head origin -a       # 會自動偵測遠端 HEAD
+# 或手動指定 develop
+git remote set-head origin develop
 
+
+驗證：
+
+git remote show origin
+
+
+會看到：
+
+HEAD branch: develop
+
+4️⃣ 推送 default branch（確保 develop 存在於新 server）
+git push -u origin develop
+
+5️⃣ 調整新 Git server 的 Default Branch
+
+這一步要根據你使用的 Git 伺服器來操作：
+
+GitHub → Repo → Settings → Branches → Default branch → 選 develop
+
+GitLab → Repo → Settings → Repository → Default branch → 選 develop
+
+Gitea/GitBucket → Repo → Settings → Default branch → 選 develop
+
+✅ 最後 clone 測試
+
+新使用者 git clone https://new.git.server/repo.git，預設就會自動 checkout develop。
 #!/bin/bash
 # ========= 參數設定 =========
 OLD_REPO_URL="https://oldserver.com/your-repo.git"

@@ -1,0 +1,603 @@
+using Dapper;
+using Microsoft.Data.SqlClient;
+using newauo.Helper;
+using Newtonsoft.Json;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
+using System.Reflection;
+
+namespace OneSupplierPlatform.Utility
+{
+    // =========================
+    // Connection Factory (Multi DB)
+    // =========================
+    public class SqlConnectionFactory : IDbConnectionFactory
+    {
+        private readonly IConfiguration _config;
+
+        public SqlConnectionFactory(IConfiguration config)
+        {
+            _config = config;
+        }
+
+        public IDbConnection CreateConnection(string dbName = "AMSC-SQLDB")
+        {
+            var connStr = _config.GetConnectionString(dbName);
+
+            var conn = new SqlConnection(connStr);
+            conn.Open();
+            return conn;
+        }
+    }
+
+    // =========================
+    // RepositoryIGenericRepository,
+    // =========================
+    public class GenericRepository : IGenericRepository, IDisposable
+    {
+        private readonly IDbConnectionFactory _factory;
+        private IDbConnection _conn;
+        private IDbTransaction _tx;
+        private readonly string _dbName;
+        private IDbConnection ActiveConn => _conn ??= _factory.CreateConnection(_dbName);
+        private IDbTransaction ActiveTx => _tx;
+        public GenericRepository(IDbConnectionFactory factory, string dbName = "AMSC-SQLDB")
+        {
+            _factory = factory;
+            _dbName = dbName;
+        }
+
+
+        // =========================
+        // Connection
+        // =========================
+        private IDbConnection GetConnection()
+        {
+            if (_conn == null)
+                _conn = _factory.CreateConnection(_dbName);
+
+            return _conn;
+        }
+
+        public void UseDatabase(string dbName)
+        {
+            _conn?.Dispose();
+            _conn = _factory.CreateConnection(dbName);
+        }
+
+        // =========================
+        // Transaction
+        // =========================
+        public void BeginTransaction()
+        {
+            if (_conn == null)
+                _conn = _factory.CreateConnection(_dbName);
+
+            if (_conn.State != ConnectionState.Open)
+                _conn.Open();
+
+            _tx = _conn.BeginTransaction();
+        }
+
+        public void Commit()
+        {
+            _tx?.Commit();
+            _tx = null;
+        }
+
+        public void Rollback()
+        {
+            _tx?.Rollback();
+            _tx = null;
+        }
+        private SqlDbType GetSqlDbType(Type type)
+        {
+            type = Nullable.GetUnderlyingType(type) ?? type;
+
+            return type switch
+            {
+                Type t when t == typeof(string) => SqlDbType.NVarChar,
+                Type t when t == typeof(int) => SqlDbType.Int,
+                Type t when t == typeof(long) => SqlDbType.BigInt,
+                Type t when t == typeof(decimal) => SqlDbType.Decimal,
+                Type t when t == typeof(double) => SqlDbType.Float,
+                Type t when t == typeof(bool) => SqlDbType.Bit,
+                Type t when t == typeof(DateTime) => SqlDbType.DateTime,
+                Type t when t == typeof(Guid) => SqlDbType.UniqueIdentifier,
+                _ => SqlDbType.NVarChar
+            };
+        }
+
+        private bool IsIdentity(PropertyInfo p)
+        {
+            var attr = p.GetCustomAttribute<DatabaseGeneratedAttribute>();
+            return attr != null &&
+                   attr.DatabaseGeneratedOption == DatabaseGeneratedOption.Identity;
+        }
+        // =========================
+        // SAVE
+        // =========================
+        public async Task SaveAsync<T>(T entity)
+        {
+            await UpsertAsync(entity);
+        }
+        public async Task UpsertAsync<T>(T entity)
+        {
+            var type = typeof(T);
+            var table = GetTableName(type);
+
+            var keyProps = GetKeyProperties(type);
+
+            var keyDict = keyProps.ToDictionary(
+                k => k.Name,
+                k => k.GetValue(entity)
+            );
+
+            var exists = await ExistsAsync<T>(table, keyProps, keyDict);
+
+            if (exists)
+                await UpdateAsync(entity);
+            else
+                await InsertAsync(entity);
+        }
+        private async Task<bool> ExistsAsync<T>(
+                                string table,
+                                List<PropertyInfo> keyProps,
+                                Dictionary<string, object> keys)
+        {
+            var where = new List<string>();
+            var param = new DynamicParameters();
+
+            foreach (var kp in keyProps)
+            {
+                var col = GetColumnName(kp);
+                where.Add($"{col}=@{col}");
+                param.Add("@" + col, keys[kp.Name]);
+            }
+
+            var sql = $@"
+                        SELECT 1 FROM {table}
+                        WHERE {string.Join(" AND ", where)}";
+
+            var result = await ActiveConn.QueryFirstOrDefaultAsync<int?>(sql, param, ActiveTx);
+
+            return result.HasValue;
+        }
+
+        public async Task<List<T>> QueryAsync<T>(string sql, object param = null)
+        {
+            var result = await ActiveConn.QueryAsync<T>(sql, param, ActiveTx);
+            return result.ToList();
+        }
+        public Task<T> QuerySingleAsync<T>(string sql, object param = null)
+             => ActiveConn.QueryFirstOrDefaultAsync<T>(sql, param, ActiveTx);
+        public T QuerySingle<T>(string sql, object param = null)
+             => ActiveConn.QueryFirstOrDefault<T>(sql, param, ActiveTx);
+        public Task<int> ExecuteReturnAsync(string sql, object param = null)
+            => ActiveConn.ExecuteAsync(sql, param, ActiveTx);
+        public int ExecuteReturn(string sql, object param = null)
+            => ActiveConn.Execute(sql, param, ActiveTx);
+        public async Task<bool> ExecuteAsync(string sql, object param = null)
+            => await ExecuteReturnAsync(sql, param) > 0;
+        public bool Execute(string sql, object param = null)
+            => ExecuteReturn(sql, param) > 0;
+        public Task<T> ExecuteScalarAsync<T>(string sql, object param = null)
+             => ActiveConn.ExecuteScalarAsync<T>(sql, param, ActiveTx);
+        private IDataParameter CreateParameter(string name, object value, Type type = null)
+        {
+            var cmd = GetConnection().CreateCommand();
+
+            var param = cmd.CreateParameter();
+            param.ParameterName = name;
+
+            if (value == null)
+            {
+                param.Value = DBNull.Value;
+                return param;
+            }
+
+            // =========================
+            // TYPE SAFE BINDING
+            // =========================
+            if (param is SqlParameter sqlParam && type != null)
+            {
+                sqlParam.SqlDbType = GetSqlDbType(type);
+            }
+
+            param.Value = value;
+            return param;
+        }
+
+        // =========================
+        // INSERT
+        // =========================
+        public async Task InsertAsync<T>(T entity)
+        {
+            var type = typeof(T);
+            var table = GetTableName(type);
+            var props = GetProps(type);
+
+            var cols = new List<string>();
+            var vals = new List<string>();
+            var param = new DynamicParameters();
+
+            foreach (var p in props)
+            {
+                if (IsIdentity(p)) continue;
+                var val = p.GetValue(entity);
+                if (val == null) continue;
+
+                var col = GetColumnName(p);
+
+                cols.Add(col);
+                vals.Add("@" + col);
+
+                param.Add("@" + col, val);
+            }
+
+            var sql = $@"
+                        INSERT INTO {table}
+                        ({string.Join(",", cols)})
+                        VALUES
+                        ({string.Join(",", vals)})
+                        ";
+
+            await ActiveConn.ExecuteAsync(sql, param, ActiveTx);
+        }
+
+        // =========================
+        // UPDATE
+        // =========================
+        public async Task UpdateAsync<T>(T entity)
+        {
+            var type = typeof(T);
+            var table = GetTableName(type);
+
+            var keyProps = GetKeyProperties(type);
+            var props = GetProps(type);
+
+            var sets = new List<string>();
+            var where = new List<string>();
+            var param = new DynamicParameters();
+
+            foreach (var p in props)
+            {
+                var skipAttr = p.GetCustomAttribute<SkipAttribute>();
+                if (skipAttr != null)
+                {
+                    continue;
+                }
+                var col = GetColumnName(p);
+                var val = p.GetValue(entity) ?? DBNull.Value;
+
+                if (keyProps.Contains(p))
+                    where.Add($"{col}=@{col}");
+                else
+                    sets.Add($"{col}=@{col}");
+
+                param.Add("@" + col, val);
+
+            }
+
+            var sql = $@"
+UPDATE {table}
+SET {string.Join(",", sets)}
+WHERE {string.Join(" AND ", where)}
+";
+
+            await ActiveConn.ExecuteAsync(sql, param, ActiveTx);
+        }
+
+        // =========================
+        // DELETE
+        // =========================
+        private async Task DeleteAsync<T>(object keys)
+        {
+            var type = typeof(T);
+            var table = GetTableName(type);
+            var keyProps = GetKeyProperties(type);
+
+            var where = new List<string>();
+            var param = new DynamicParameters();
+
+
+            foreach (var kp in keyProps)
+            {
+                var col = GetColumnName(kp);
+                var val = GetKeyValue(keys, kp.Name);
+                if (!IsValidValue(val))
+                    continue;
+                where.Add($"{col}=@{col}");
+                param.Add("@" + col, val);
+            }
+            if (where.Count == 0)
+                throw new Exception("No valid keys provided for DeleteAsync");
+            var sql = $"DELETE FROM {table} WHERE {string.Join(" AND ", where)}";
+            await ActiveConn.ExecuteAsync(sql, param, ActiveTx);
+
+        }
+
+        // =========================
+        // GET
+        // =========================
+        public async Task<T> GetAsync<T>(object keys) where T : new()
+        {
+            var type = typeof(T);
+            var table = GetTableName(type);
+            var keyProps = GetKeyProperties(type);
+
+            var where = new List<string>();
+            var param = new DynamicParameters();
+
+
+            foreach (var kp in keyProps)
+            {
+                var col = GetColumnName(kp);
+                var val = GetKeyValue(keys, kp.Name);
+                if (!IsValidValue(val))
+                    continue;
+                where.Add($"{col}=@{col}");
+                param.Add("@" + col, val);
+            }
+            if (where.Count == 0)
+                throw new Exception("No valid keys provided for GetAsync");
+            if (where.Count != keyProps.Count)
+                throw new Exception("Incomplete key condition detected");
+            var sql = $"SELECT * FROM {table} WHERE {string.Join(" AND ", where)}";
+
+            return await ActiveConn.QueryFirstOrDefaultAsync<T>(sql, param, ActiveTx);
+
+        }
+        public async Task SaveManyAsync<T>(IEnumerable<T> entities) where T : new()
+        {
+            if (ActiveTx == null)
+            {
+                throw new InvalidOperationException("必須先呼叫 BeginTransaction() 才能執行此操作。");
+            }
+
+            var conn = ActiveTx.Connection;
+            if (conn == null)
+            {
+                throw new InvalidOperationException("目前的交易已失去連線，可能已被關閉。");
+            }
+            var list = entities?.ToList();
+            if (list == null || list.Count == 0)
+                return;
+
+            var type = typeof(T);
+            var table = GetTableName(type);
+            var keyProps = GetKeyProperties(type);
+            var props = GetProps(type);
+
+            var items = list.Select(e =>
+            {
+                var dict = keyProps.ToDictionary(
+                    k => k.Name,
+                    k => k.GetValue(e)
+                );
+
+                return (Entity: e, Key: dict);
+            }).ToList();
+
+            var existingKeys = await GetExistingKeySetAsync(conn, table, keyProps, items);
+
+            var inserts = new List<T>();
+            var updates = new List<T>();
+
+            foreach (var item in items)
+            {
+                var key = BuildKeyString(item.Key);
+
+                if (existingKeys.Contains(key))
+                    updates.Add(item.Entity);
+                else
+                    inserts.Add(item.Entity);
+            }
+
+            if (inserts.Count > 0)
+                await BulkInsertFastAsync(table, inserts, props);
+
+            if (updates.Count > 0)
+                await BulkUpdateFastAsync(table, updates, props, keyProps);
+
+        }
+        private async Task BulkInsertFastAsync<T>(
+                            string table,
+                            List<T> list,
+                            List<PropertyInfo> props)
+        {
+
+            var cols = props
+         .Where(p => !IsIdentity(p))
+         .Select(GetColumnName)
+         .ToList();
+
+            var sql = $@"
+                        INSERT INTO {table}
+                        ({string.Join(",", cols)})
+                        VALUES
+                        ({string.Join(",", cols.Select(c => "@" + c))})";
+
+            foreach (var item in list)
+            {
+                var param = new DynamicParameters();
+
+                foreach (var p in props)
+                {
+                    if (IsIdentity(p)) continue;
+
+                    param.Add("@" + GetColumnName(p), p.GetValue(item));
+                }
+
+                await ActiveConn.ExecuteAsync(sql, param, ActiveTx);
+            }
+
+
+        }
+        private async Task BulkUpdateFastAsync<T>(
+    string table,
+    List<T> list,
+    List<PropertyInfo> props,
+    List<PropertyInfo> keyProps)
+        {
+            var setParts = new List<string>();
+            var whereParts = new List<string>();
+
+            foreach (var p in props)
+            {
+                if (IsIdentity(p)) continue;
+                if (p.GetCustomAttribute<SkipAttribute>() != null) continue;
+
+                var col = GetColumnName(p);
+
+                if (keyProps.Contains(p))
+                    whereParts.Add($"{col} = @{col}");
+                else
+                    setParts.Add($"{col} = @{col}");
+            }
+
+            var sql = $@"
+UPDATE {table}
+SET {string.Join(",", setParts)}
+WHERE {string.Join(" AND ", whereParts)}";
+
+            foreach (var entity in list)
+            {
+                var param = new DynamicParameters();
+
+                foreach (var p in props)
+                {
+                    if (IsIdentity(p)) continue;
+                    if (p.GetCustomAttribute<SkipAttribute>() != null) continue;
+
+                    var col = GetColumnName(p);
+                    var val = p.GetValue(entity);
+
+                    param.Add("@" + col, val);
+                }
+
+                await ActiveConn.ExecuteAsync(sql, param, ActiveTx);
+            }
+        }
+
+        private async Task<HashSet<string>> GetExistingKeySetAsync<T>(
+    IDbConnection conn,
+    string table,
+    List<PropertyInfo> keyProps,
+    List<(T Entity, Dictionary<string, object> Key)> items)
+        {
+            var result = new HashSet<string>();
+            if (items.Count == 0) return result;
+
+            // build IN-style batch query per key
+            var param = new DynamicParameters();
+
+            var conditions = new List<string>();
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                var group = new List<string>();
+
+                foreach (var kp in keyProps)
+                {
+                    var col = GetColumnName(kp);
+                    var pname = $"p{i}_{col}";
+                    group.Add($"{col} = @{pname}");
+                    param.Add(pname, items[i].Key[kp.Name]);
+                }
+
+                conditions.Add("(" + string.Join(" AND ", group) + ")");
+            }
+
+            var sql = $@"
+SELECT {string.Join(",", keyProps.Select(GetColumnName))}
+FROM {table}
+WHERE {string.Join(" OR ", conditions)}";
+
+            var rows = await conn.QueryAsync(sql, param, ActiveTx);
+
+            foreach (IDictionary<string, object> row in rows)
+            {
+                result.Add(BuildFastKey(row, keyProps));
+            }
+
+            return result;
+        }
+        private string BuildFastKey(IDictionary<string, object> row, List<PropertyInfo> keyProps)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            foreach (var kp in keyProps)
+            {
+                var col = GetColumnName(kp);
+                sb.Append(col)
+                  .Append(':')
+                  .Append(row[col])
+                  .Append('|');
+            }
+
+            return sb.ToString();
+        }
+        private string BuildKeyString(Dictionary<string, object> dict)
+        {
+            return string.Join("||",
+                dict.OrderBy(x => x.Key)
+                    .Select(x => $"{x.Key}:{x.Value}")
+            );
+        }
+
+
+        // =========================
+        // Helpers
+        // =========================
+        private string GetTableName(Type type)
+        {
+            var attr = type.GetCustomAttribute<TableAttribute>();
+            return attr?.Name ?? type.Name;
+        }
+
+        private List<PropertyInfo> GetKeyProperties(Type type)
+        {
+            var keys = type.GetProperties()
+                .Where(p => p.GetCustomAttribute<KeyAttribute>() != null)
+                .ToList();
+
+            if (!keys.Any())
+                throw new Exception($"No [Key] defined on {type.Name}");
+
+            return keys;
+        }
+
+        private string GetColumnName(PropertyInfo prop)
+        {
+            var json = prop.GetCustomAttribute<JsonPropertyAttribute>();
+            return json?.PropertyName ?? prop.Name;
+        }
+
+        private List<PropertyInfo> GetProps(Type type)
+             => type.GetProperties().Where(p => p.CanRead && p.CanWrite).ToList();
+
+        private object GetKeyValue(object obj, string name)
+             => obj.GetType().GetProperty(name)?.GetValue(obj);
+
+        public void Dispose()
+        {
+            _tx?.Dispose();
+            _tx = null;
+
+            _conn?.Dispose();
+            _conn = null;
+        }
+
+        private bool IsValidValue(object value)
+        {
+            if (value == null) return false;
+
+            if (value is string s && string.IsNullOrWhiteSpace(s))
+                return false;
+
+            return true;
+        }
+    }
+}

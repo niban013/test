@@ -1,0 +1,266 @@
+<%@ Import Namespace="System.Security.Cryptography" %>
+<%@ Import Namespace="System.Text" %>
+<%@ Import Namespace="System.Web" %>
+
+<%
+    string empId = Session["EmpId"].ToString();
+
+    long ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+    string nonce = Guid.NewGuid().ToString("N");
+
+    string secret = ConfigurationManager.AppSettings["IframeSecret"];
+
+    string data = empId + "|" + ts + "|" + nonce;
+
+    string sig;
+    using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+    {
+        sig = Convert.ToBase64String(
+            hmac.ComputeHash(Encoding.UTF8.GetBytes(data))
+        );
+    }
+
+    string url =
+        "https://abc.zz.com/approve/index" +
+        "?empId=" + HttpUtility.UrlEncode(empId) +
+        "&ts=" + ts +
+        "&nonce=" + nonce +
+        "&sig=" + HttpUtility.UrlEncode(sig);
+%>
+
+<iframe src="<%= url %>" width="100%" height="800"></iframe>
+
+
+
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.Caching.Memory;
+
+public class CapMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly IConfiguration _config;
+    private readonly IMemoryCache _cache;
+
+    public CapMiddleware(
+        RequestDelegate next,
+        IConfiguration config,
+        IMemoryCache cache)
+    {
+        _next = next;
+        _config = config;
+        _cache = cache;
+    }
+
+    public async Task InvokeAsync(HttpContext context, CapAuthService capService)
+    {
+        var enabled = _config.GetValue<bool>("CapAuth:Enabled");
+
+        if (!enabled)
+        {
+            await _next(context);
+            return;
+        }
+
+        var cookieName = _config["CapAuth:CookieName"];
+        var path = context.Request.Path.Value?.ToLower() ?? "";
+
+        // =========================
+        // 1. 靜態資源
+        // =========================
+        if (path.StartsWith("/css") ||
+            path.StartsWith("/js") ||
+            path.StartsWith("/lib") ||
+            path.StartsWith("/images") ||
+            path.StartsWith("/favicon"))
+        {
+            await _next(context);
+            return;
+        }
+
+        // =========================
+        // 2. Auth
+        // =========================
+        if (path.StartsWith("/auth"))
+        {
+            await _next(context);
+            return;
+        }
+
+        // =========================
+        // 3. 已登入
+        // =========================
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            await _next(context);
+            return;
+        }
+
+        // =========================
+        // 4. CAP retry 防 loop
+        // =========================
+        if (context.Request.Cookies["CAP_RETRY"] == "1")
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsync("SSO failed (loop blocked)");
+            return;
+        }
+
+        // =========================
+        // 5. ⭐ iframe signed login（最高優先）
+        // =========================
+        var empId = context.Request.Query["empId"].ToString();
+        var ts = context.Request.Query["ts"].ToString();
+        var nonce = context.Request.Query["nonce"].ToString();
+        var sig = context.Request.Query["sig"].ToString();
+
+        if (IsValidIframe(empId, ts, nonce, sig))
+        {
+            // 🔥 Case 2 / Case 3：iframe 永遠覆蓋 CAP
+            await SignIn(context, empId);
+
+            await _next(context);
+            return;
+        }
+
+        // =========================
+        // 6. CAP login fallback
+        // =========================
+        var token = context.Request.Cookies[cookieName];
+
+        // Case 1：沒有 CAP → redirect
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            RedirectToCap(context);
+            return;
+        }
+
+        var user = await capService.GetUserInfoAsync(token);
+
+        if (user == null)
+        {
+            context.Response.Cookies.Delete(cookieName);
+            RedirectToCap(context);
+            return;
+        }
+
+        // Case 1：正常 CAP login
+        await SignIn(context, user.EmployeeId);
+
+        context.Response.Cookies.Delete("CAP_RETRY");
+
+        await _next(context);
+    }
+
+    // =========================
+    // iframe 驗證（防改 + 防重放）
+    // =========================
+    private bool IsValidIframe(string empId, string ts, string nonce, string sig)
+    {
+        if (string.IsNullOrEmpty(empId) ||
+            string.IsNullOrEmpty(ts) ||
+            string.IsNullOrEmpty(nonce) ||
+            string.IsNullOrEmpty(sig))
+            return false;
+
+        if (!long.TryParse(ts, out var time))
+            return false;
+
+        // 1. 過期（5分鐘）
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (Math.Abs(now - time) > 300)
+            return false;
+
+        // 2. 防重放（nonce）
+        if (_cache.TryGetValue("nonce_" + nonce, out _))
+            return false;
+
+        // 3. 驗 sig
+        var secret = _config["CapAuth:IframeSecret"];
+        var data = $"{empId}|{ts}|{nonce}";
+
+        using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+        {
+            var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
+            var expected = Convert.ToBase64String(hash);
+
+            if (expected != sig)
+                return false;
+        }
+
+        // 4. 記錄 nonce（防重放）
+        _cache.Set("nonce_" + nonce, true, TimeSpan.FromMinutes(5));
+
+        return true;
+    }
+
+    // =========================
+    // 統一登入
+    // =========================
+    private async Task SignIn(HttpContext context, string empId)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, empId),
+            new Claim("EmployeeId", empId)
+        };
+
+        var identity = new ClaimsIdentity(
+            claims,
+            CookieAuthenticationDefaults.AuthenticationScheme);
+
+        var principal = new ClaimsPrincipal(identity);
+
+        await context.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal);
+
+        context.User = principal;
+    }
+
+    // =========================
+    // CAP redirect
+    // =========================
+    private void RedirectToCap(HttpContext context)
+    {
+        var loginUrl = _config["CapAuth:LoginUrl"];
+
+        var returnUrl =
+            $"{context.Request.Scheme}://{context.Request.Host}{context.Request.Path}{context.Request.QueryString}";
+
+        context.Response.Cookies.Append(
+            "CAP_RETRY",
+            "1",
+            new CookieOptions
+            {
+                Expires = DateTimeOffset.UtcNow.AddMinutes(5),
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax
+            });
+
+        context.Response.Redirect(loginUrl + "?ReturnUrl=" + Uri.EscapeDataString(returnUrl));
+    }
+}
+
+
+🧠 Case 行為總結（你要記這個）
+🟢 Case 1：只有 CAP
+CAP = A
+iframe 없음
+→ A
+🟢 Case 2：CAP + iframe（衝突）
+CAP = A
+iframe = B
+→ B（覆蓋 CAP）
+🟢 Case 3：只有 iframe
+iframe = B
+→ B
+
+
+
+
+

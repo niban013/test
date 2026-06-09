@@ -1,6 +1,7 @@
 <%@ Import Namespace="System.Security.Cryptography" %>
 <%@ Import Namespace="System.Text" %>
 <%@ Import Namespace="System.Web" %>
+<%@ Import Namespace="System.Text.Json" %>
 
 <%
     string empId = Session["EmpId"].ToString();
@@ -10,36 +11,45 @@
 
     string secret = ConfigurationManager.AppSettings["IframeSecret"];
 
-    string data = empId + "|" + ts + "|" + nonce;
+    // =========================
+    // 1. 組 payload
+    // =========================
+    var payloadObj = new
+    {
+        empId = empId,
+        ts = ts,
+        nonce = nonce
+    };
 
+    string payloadJson = JsonSerializer.Serialize(payloadObj);
+    string payloadBase64 = Convert.ToBase64String(
+        Encoding.UTF8.GetBytes(payloadJson)
+    );
+
+    // =========================
+    // 2. 簽章（只簽 payload）
+    // =========================
     string sig;
     using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
     {
         sig = Convert.ToBase64String(
-            hmac.ComputeHash(Encoding.UTF8.GetBytes(data))
+            hmac.ComputeHash(Encoding.UTF8.GetBytes(payloadBase64))
         );
     }
 
+    // =========================
+    // 3. 組成 token（重點）
+    // =========================
+    string token = payloadBase64 + "." + sig;
+
     string url =
         "https://abc.zz.com/approve/index" +
-        "?empId=" + HttpUtility.UrlEncode(empId) +
-        "&ts=" + ts +
-        "&nonce=" + nonce +
-        "&sig=" + HttpUtility.UrlEncode(sig);
+        "?token=" + HttpUtility.UrlEncode(token);
 %>
 
 <iframe src="<%= url %>" width="100%" height="800"></iframe>
 
-
-
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Caching.Memory;
-
-public class CapMiddleware
+ public class CapMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IConfiguration _config;
@@ -91,12 +101,43 @@ public class CapMiddleware
         }
 
         // =========================
-        // 3. 已登入
+        // 3. iframe token login（最高優先）
         // =========================
-        if (context.User.Identity?.IsAuthenticated == true)
+        var tokenParam = context.Request.Query["token"].ToString();
+
+        if (!string.IsNullOrWhiteSpace(tokenParam))
         {
-            await _next(context);
-            return;
+            var payload = ValidateIframeToken(tokenParam);
+
+            if (payload != null)
+            {
+                var currentEmpId = context.User?.FindFirst("EmployeeId")?.Value;
+
+                // Case A：同工號 → 不重登
+                if (!string.IsNullOrEmpty(currentEmpId) &&
+                    currentEmpId == payload.EmpId)
+                {
+                    await _next(context);
+                    return;
+                }
+
+                // Case B：不同工號 → 查 user + 覆蓋登入
+                var user = await capService.GetUserByEmpIdAsync(payload.EmpId);
+
+                if (user == null)
+                {
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsync("User not found");
+                    return;
+                }
+
+                await SignIn(context, user);
+
+                context.Response.Cookies.Delete("CAP_RETRY");
+
+                await _next(context);
+                return;
+            }
         }
 
         // =========================
@@ -110,102 +151,112 @@ public class CapMiddleware
         }
 
         // =========================
-        // 5. ⭐ iframe signed login（最高優先）
+        // 5. 已登入（CAP 或 cookie）
         // =========================
-        var empId = context.Request.Query["empId"].ToString();
-        var ts = context.Request.Query["ts"].ToString();
-        var nonce = context.Request.Query["nonce"].ToString();
-        var sig = context.Request.Query["sig"].ToString();
-
-        if (IsValidIframe(empId, ts, nonce, sig))
+        if (context.User.Identity?.IsAuthenticated == true)
         {
-            // 🔥 Case 2 / Case 3：iframe 永遠覆蓋 CAP
-            await SignIn(context, empId);
-
             await _next(context);
             return;
         }
 
         // =========================
-        // 6. CAP login fallback
+        // 6. CAP fallback
         // =========================
-        var token = context.Request.Cookies[cookieName];
+        var capToken = context.Request.Cookies[cookieName];
 
-        // Case 1：沒有 CAP → redirect
-        if (string.IsNullOrWhiteSpace(token))
+        if (string.IsNullOrWhiteSpace(capToken))
         {
             RedirectToCap(context);
             return;
         }
 
-        var user = await capService.GetUserInfoAsync(token);
+        var capUser = await capService.GetUserInfoAsync(capToken);
 
-        if (user == null)
+        if (capUser == null)
         {
             context.Response.Cookies.Delete(cookieName);
             RedirectToCap(context);
             return;
         }
 
-        // Case 1：正常 CAP login
-        await SignIn(context, user.EmployeeId);
+        await SignIn(context, capUser);
 
         context.Response.Cookies.Delete("CAP_RETRY");
 
         await _next(context);
     }
 
-    // =========================
-    // iframe 驗證（防改 + 防重放）
-    // =========================
-    private bool IsValidIframe(string empId, string ts, string nonce, string sig)
+    // =====================================================
+    // TOKEN 解析（取代 empId/ts/nonce/sig）
+    // =====================================================
+    private IframePayload ValidateIframeToken(string token)
     {
-        if (string.IsNullOrEmpty(empId) ||
-            string.IsNullOrEmpty(ts) ||
-            string.IsNullOrEmpty(nonce) ||
-            string.IsNullOrEmpty(sig))
-            return false;
-
-        if (!long.TryParse(ts, out var time))
-            return false;
-
-        // 1. 過期（5分鐘）
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        if (Math.Abs(now - time) > 300)
-            return false;
-
-        // 2. 防重放（nonce）
-        if (_cache.TryGetValue("nonce_" + nonce, out _))
-            return false;
-
-        // 3. 驗 sig
-        var secret = _config["CapAuth:IframeSecret"];
-        var data = $"{empId}|{ts}|{nonce}";
-
-        using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+        try
         {
-            var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-            var expected = Convert.ToBase64String(hash);
+            var secret = _config["CapAuth:IframeSecret"];
 
-            if (expected != sig)
-                return false;
+            var parts = token.Split('.');
+            if (parts.Length != 2) return null;
+
+            var payloadBase64 = parts[0];
+            var sig = parts[1];
+
+            // 驗簽
+            using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+            {
+                var expected = Convert.ToBase64String(
+                    hmac.ComputeHash(Encoding.UTF8.GetBytes(payloadBase64))
+                );
+
+                if (expected != sig)
+                    return null;
+            }
+
+            // 解 payload
+            var json = Encoding.UTF8.GetString(
+                Convert.FromBase64String(payloadBase64)
+            );
+
+            var payload = JsonSerializer.Deserialize<IframePayload>(json);
+
+            if (payload == null)
+                return null;
+
+            // 時間驗證（5分鐘）
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (Math.Abs(now - payload.Ts) > 300)
+                return null;
+
+            // nonce 防重放
+            if (_cache.TryGetValue("nonce_" + payload.Nonce, out _))
+                return null;
+
+            _cache.Set("nonce_" + payload.Nonce, true, TimeSpan.FromMinutes(5));
+
+            return payload;
         }
-
-        // 4. 記錄 nonce（防重放）
-        _cache.Set("nonce_" + nonce, true, TimeSpan.FromMinutes(5));
-
-        return true;
+        catch
+        {
+            return null;
+        }
     }
 
-    // =========================
+    // =====================================================
     // 統一登入
-    // =========================
-    private async Task SignIn(HttpContext context, string empId)
+    // =====================================================
+    private async Task SignIn(HttpContext context, CapUserInfo user)
     {
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, empId),
-            new Claim("EmployeeId", empId)
+            new Claim(ClaimTypes.NameIdentifier, user.UserId ?? ""),
+            new Claim(ClaimTypes.Name, user.RealName ?? ""),
+            new Claim("EmployeeId", user.EmployeeId ?? ""),
+            new Claim(ClaimTypes.Email, user.Email ?? ""),
+            new Claim("DepartmentId", user.DepartmentId ?? ""),
+            new Claim("BossLevel", user.BossLevel.ToString()),
+            new Claim("CompanyName", user.CompanyName ?? ""),
+            new Claim("Site", user.Site ?? ""),
+            new Claim("Photo", ExtendTool.GetUserPhotoUrl(user.EmployeeId))
         };
 
         var identity = new ClaimsIdentity(
@@ -221,9 +272,9 @@ public class CapMiddleware
         context.User = principal;
     }
 
-    // =========================
+    // =====================================================
     // CAP redirect
-    // =========================
+    // =====================================================
     private void RedirectToCap(HttpContext context)
     {
         var loginUrl = _config["CapAuth:LoginUrl"];
@@ -242,7 +293,19 @@ public class CapMiddleware
                 SameSite = SameSiteMode.Lax
             });
 
-        context.Response.Redirect(loginUrl + "?ReturnUrl=" + Uri.EscapeDataString(returnUrl));
+        context.Response.Redirect(
+            loginUrl + "?ReturnUrl=" + Uri.EscapeDataString(returnUrl)
+        );
+    }
+
+    // =====================================================
+    // Payload model
+    // =====================================================
+    private class IframePayload
+    {
+        public string EmpId { get; set; }
+        public long Ts { get; set; }
+        public string Nonce { get; set; }
     }
 }
 

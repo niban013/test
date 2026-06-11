@@ -1,0 +1,6988 @@
+window.FieldBinder = (() => { 
+	function editable(container, stepKey) {
+		bindFields(container, stepKey, "editable");
+	}
+
+	function readOnly(container, stepKey) {
+		bindFields(container, stepKey, "readOnly");
+	}
+	function bindFieldEvents(
+		el,
+		stepKey,
+		container,
+		adapter,
+		store
+	) {
+
+		const update = async (e) => {
+
+			const target =
+				e?.target || el;
+
+			const key =
+				getKey(target);
+
+			store.setTouched(
+				stepKey,
+				key
+			);
+
+			const newValue =
+				adapter.getValue(
+					target,
+					container
+				);
+
+			if (target.type === "file") {
+
+				const result =
+					await window.PreviewModule.importfile({
+						stepKey,
+						key,
+						store,
+						container,
+						target,
+						newValue
+					});
+
+				if (!result) {
+					alert("fail");
+				}
+
+				return;
+			}
+
+			GraphV2.notify(
+				stepKey,
+				key,
+				newValue,
+				{
+					virtual:
+						RuntimeHelpers.getVirtual(target)
+				}
+			);
+		};
+
+		adapter.bind(
+			el,
+			update
+		);
+
+		const blurHandler = () => {
+
+			store.setTouched(
+				stepKey,
+				getKey(el)
+			);
+		};
+
+		el.__blurHandler =
+			blurHandler;
+
+		el.addEventListener(
+			"blur",
+			blurHandler
+		);
+	}
+
+	function bindFieldWatch(
+		el,
+		stepKey,
+		key,
+		store
+	) {
+
+		const stop = Vue.watch(
+
+			() => ({
+				error:
+					store.getError(stepKey, key),
+
+				status:
+					store.getStatus(stepKey, key),
+
+				touched:
+					store.isTouched(stepKey, key),
+
+				submitted:
+					store.isStepSubmitted(stepKey),
+
+				val:
+					store.get(stepKey, key)
+			}),
+
+			(state) => {
+
+				applyValue(
+					el,
+					state.val
+				);
+
+				const ui =
+					resolveFieldState({
+						error:
+							state.error,
+
+						status:
+							state.status,
+
+						touched:
+							state.touched,
+
+						submitted:
+							state.submitted,
+
+						val:
+							state.val,
+
+						required:
+							el.dataset.rule?.includes("required")
+					});
+
+				if (!ui.state) {
+
+					FieldStatus.clear(el);
+					return;
+				}
+
+				FieldStatus.set(el, ui.state, ui.message);
+			},
+
+			{
+				immediate: true
+			}
+		);
+
+		el.__vueStop = stop;
+	}
+	function getInitialValue(el, stepKey, store) {
+
+		let value = store.get(stepKey, getKey(el));
+
+		if (!isEmpty(value)) {
+			return value;
+		}
+
+		if (el.dataset.type === "label" || el.type === "hidden") {
+
+			return el.type === "hidden"
+				? (el.value || null)
+				: (el.dataset.value ?? el.textContent.trim() ?? null);
+		}
+
+		if (el.type === "checkbox") {
+			return el.checked;
+		}
+
+		if (el.type === "radio") {
+			return el.checked ? el.value : null;
+		}
+
+		if (el.tagName === "SELECT") {
+			return el.dataset.value ?? el.value;
+		}
+
+		if (el.type === "file") {
+			return null;
+		}
+
+		return el.dataset.value ?? el.value;
+	}
+	function waitForOptionsReady(el, stepKey, key, timeout = 3000) {
+
+		return new Promise(resolve => {
+
+			const $el = $(el);
+
+			let done = false;
+			let timer = null;
+
+			const isSelect2 = !!$el.data("select2");
+
+			// =========================
+			// check condition
+			// =========================
+			const check = () => {
+
+				if (done) return;
+
+				// 1. native options
+				const hasOptions =
+					el.options &&
+					el.options.length > 1;
+
+				// 2. select2 rendered
+				const select2Ready =
+					!isSelect2 ||
+					($el.data("select2") &&
+						$el.data("select2").$results);
+
+				// 3. dataset fallback (your async API often sets this)
+				const hasDataset =
+					el.dataset.optionsLoaded === "1" ||
+					el.dataset.asyncReady === "1";
+
+				if (hasOptions || hasDataset) {
+
+					done = true;
+					clearTimeout(timer);
+					resolve();
+					return;
+				}
+
+				requestAnimationFrame(check);
+			};
+
+			// =========================
+			// timeout safety
+			// =========================
+			timer = setTimeout(() => {
+
+				if (!done) {
+					done = true;
+					resolve(); // avoid deadlock
+				}
+
+			}, timeout);
+
+			check();
+		});
+	}
+	function bindFields(container, stepKey, mode = "editable") {
+
+		const plugins = AppBootstrap.get("FilePlugin");
+		const store = AppBootstrap.get("FlowStore");
+
+		const isReadOnly = mode === "readOnly";
+
+		container.querySelectorAll("[data-field]").forEach(async el => {
+
+			if (el.dataset.bound) return;
+			el.dataset.bound = "1";
+
+			const key = getKey(el);
+			const adapter = FieldAdapters.resolve(el);
+
+			const value = getInitialValue(
+					el,
+					stepKey,
+					store
+				);
+
+			// =====================
+			// READONLY
+			// =====================
+
+			if (isReadOnly) {
+
+				// =========================
+				// FILE INIT（保留）
+				// =========================
+				if (el.type === "file") {
+					plugins.init(el, {
+						stepKey,
+						key
+					});
+				}
+
+				// =========================
+				// ⭐ SELECT / SELECT2 MUST WAIT OPTIONS
+				// =========================
+				if (el.tagName === "SELECT") {
+
+					await waitForOptionsReady(el, stepKey, key);
+
+					const $el = $(el);
+
+					// 先 set value（DOM）
+					adapter.setValue(el, value);
+
+					// select2 sync
+					if ($el.data("select2")) {
+						$el.val(value).trigger("change.select2");
+					}
+					else {
+						el.value = value;
+						el.dispatchEvent(new Event("change", { bubbles: true }));
+					}
+				}
+				else {
+
+					// 非 select 正常 set
+					adapter.setValue(el, value);
+				}
+
+				// =========================
+				// DISABLE UI（最後做）
+				// =========================
+				adapter.disable(el, true);
+
+				return;
+			}
+
+			// =====================
+			// EDITABLE
+			// =====================
+
+			registerValidationRules(
+				el,
+				stepKey
+			);
+
+			// runtime
+			if (
+				RuntimeHelpers.getVirtual(el)
+				=== "runtime"
+			) {
+
+				GraphV2.setRuntime(
+					stepKey,
+					key,
+					adapter.getValue(el)
+				);
+
+				return;
+			}
+
+			// file plugin
+			if (el.type === "file") {
+
+				plugins.init(el, {
+					stepKey,
+					key
+				});
+			}
+
+			// init graph
+			if (
+				store.getStatus(stepKey, key)
+				!== "error"
+				&&
+				!isEmpty(value)
+			) {
+
+				GraphV2.notify(
+					stepKey,
+					key,
+					typeof value === "string"
+						? value.trim()
+						: value
+				);
+			}
+
+			// bind
+			bindFieldEvents(
+				el,
+				stepKey,
+				container,
+				adapter,
+				store
+			);
+
+			// validation watch
+			bindFieldWatch(
+				el,
+				stepKey,
+				key,
+				store
+			);
+		});
+	}
+	function resolveFieldState({
+		error,
+		status,
+		touched,
+		submitted,
+		val,
+		required
+	}) {
+
+		const show = touched || submitted;
+
+		const isEmptyval =
+			val === null ||
+			val === undefined ||
+			val === "" ||
+			(Array.isArray(val) && val.length === 0) ||
+			(val instanceof File && !val);
+
+		// required
+		if (show && isEmptyval && required) {
+
+			return {
+				state: "error",
+				message: "必填"
+			};
+		}
+		if (!show && !isEmptyval && isEmpty(error) && !required) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+		// valid
+		if (show && !isEmptyval && isEmpty(error)) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		// untouched empty
+		if (!show && !val) {
+
+			return {
+				state: null,
+				message: ""
+			};
+		}
+
+		// processing
+		if (status === "processing") {
+
+			if (val) {
+
+				return {
+					state: "success",
+					message: ""
+				};
+			}
+
+			if (!val && !required) {
+
+				return {
+					state: null,
+					message: ""
+				};
+			}
+
+			return {
+				state: "processing",
+				message: ""
+			};
+		}
+
+		// error
+		if (status === "error") {
+
+			return {
+				state: "error",
+				message: error || ""
+			};
+		}
+		if (status === "success" && !required) {
+			return {
+				state: null,
+				message: ""
+			};
+		}
+		// success
+		if (status === "success") {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		return {
+			state: null,
+			message: ""
+		};
+	}
+	function setReadonly(stepKey,field,readonly) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return;
+
+		const type = (el.type || "").toLowerCase();
+
+		if (
+			el.tagName === "SELECT" ||
+			type === "checkbox" ||
+			type === "radio"
+		) {
+
+			el.disabled = readonly;
+
+		} else {
+
+			el.readOnly = readonly;
+		}
+
+		el.classList.toggle(
+			"readonly",
+			readonly
+		);
+	}
+
+	function setSpecailRadio(stepKey, field, targetValue) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return; 
+		const type = (el.type || el.dataset.type || "").toLowerCase();
+		const radios = el.querySelectorAll('input[type="' + type +'"]'); 
+	 
+		let targetRadio = null;
+		let otherRadios = [];
+		 
+		for (let i = 0; i < radios.length; i++) {
+			const radio = radios[i];
+			if (String(radio.value) === String(targetValue)) {
+				targetRadio = radio;
+			} else {
+				otherRadios.push(radio);
+			}
+		}
+
+		 
+		if (targetRadio) {
+			targetRadio.checked = false;
+			targetRadio.disabled = true;
+			targetRadio.removeAttribute('checked');
+			targetRadio.style.pointerEvents = 'none';
+			if (targetRadio.parentElement) {
+				targetRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+
+		 
+		for (let j = 0; j < otherRadios.length; j++) {
+			const otherRadio = otherRadios[j];
+			otherRadio.checked = true;
+			otherRadio.disabled = true; // 鎖死
+			otherRadio.setAttribute('checked', 'checked');
+			otherRadio.style.pointerEvents = 'none';
+			if (otherRadio.parentElement) {
+				otherRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+	}
+	function bindLookupModal(stepKey, field, options) {
+
+		const input = findField(stepKey, field);
+		if (!input) return;
+
+		input.readOnly = true;
+		input.classList.add("lookup-input");
+
+		// 防重複綁定
+		if (input._lookupHandler) {
+			input.removeEventListener("click", input._lookupHandler);
+		}
+
+		input._lookupHandler = () => {
+
+			const checkbox =
+				document.querySelector(`#ctrl_${field} input[type='checkbox']`);
+
+			if (checkbox?.checked) return;
+
+			LookupEngineV7.open({
+				url: options.modalUrl,
+				modalId: options.modalId,
+
+				stepKey,
+				mapping: options.mapping
+			});
+		};
+
+		input.addEventListener("click", input._lookupHandler);
+	}
+	function bindReadonlyGroup(stepKey, field,
+		targets,
+		labelText = "") {
+		const container = document.getElementById('ctrl_' + field);
+
+		if (!container)
+			return;
+
+		const wrapper = document.createElement("div");
+		wrapper.className = "form-check mb-0";
+
+		const checkbox = document.createElement("input");
+		checkbox.type = "checkbox";
+		checkbox.className = "form-check-input";
+		checkbox.id = `chk_${field}`;
+
+		const label = document.createElement("label");
+		label.className = "form-check-label";
+		label.htmlFor = checkbox.id;
+		label.textContent = labelText;
+
+		const applyState = (checked) => {
+
+			targets.forEach(t => {
+
+				//const field = document.querySelector(
+				//	`[data-field='${t.field}']`
+				//);
+				const field = findField(stepKey, t.field)
+				if (!field)
+					return;
+
+				if (checked) {
+
+					field.value = t.value ?? "";
+					field.readOnly = true;
+
+
+				} else {
+
+					field.value = "";
+					field.readOnly = false;
+				}
+				GraphV2.notify(stepKey, t.field, field.value);
+				field.dispatchEvent(
+					new Event("change", { bubbles: true })
+				);
+			});
+		};
+
+		checkbox.addEventListener("change", () => {
+			applyState(checkbox.checked);
+		});
+
+		wrapper.appendChild(checkbox);
+
+		if (labelText)
+			wrapper.appendChild(label);
+
+		container.appendChild(wrapper);
+
+		return checkbox; 
+	} 
+	function refreshUI(stepKey, field, value) { 
+		const el = findField(stepKey, field); 
+		if (!el) return; 
+		applyValue(el, value);
+	}
+	function applyValue(el, value) {
+		const adapter = FieldAdapters.resolve(el); 
+		adapter.setValue(el, value);
+	}
+	function unbindAll(container) { 
+		container
+			.querySelectorAll("[data-field]")
+			.forEach(el => { 
+				const adapter = FieldAdapters.resolve(el); 
+				adapter.destroy(el);  
+				delete el.dataset.bound;
+			});
+	}
+	function setOptions(stepKey, key, list) { 
+		const store = AppBootstrap.get("FlowStore"); 
+		const el = findField(stepKey, key);
+		if (!el)
+			return;
+
+		if (el.tagName === "SELECT") { 
+			let optionsHtml = '<option value="">-- 請選擇 --</option>'; 
+			let dataList = list;
+			if (typeof list === "string") {
+				try {
+					dataList = JSON.parse(list);
+				} catch (e) {
+					console.error("解析 JSON 失敗", e);
+					return;
+				}
+			}
+
+			if (Array.isArray(dataList)) {
+				dataList.forEach(item => {
+					const val = item.value;
+					const txt = item.text;
+					optionsHtml += `<option value="${val}">${txt}</option>`;
+				});
+			} 
+			el.innerHTML = optionsHtml; 
+			let val = store.get(stepKey, key) || el.dataset.value;
+			GraphV2.notify(stepKey, key, val);
+		} 
+	}
+	return {
+		editable,
+		readOnly, bindLookupModal,bindFields, setReadonly, setOptions, refreshUI, unbindAll, setSpecailRadio, bindReadonlyGroup };
+
+})();
+
+
+
+
+
+
+
+
+
+
+const LookupEngineV7 = (() => {
+
+	const state = {
+		containerId: "modalContainer"
+	};
+	function resolveLookup(modalEl) {
+		return modalEl.__lookup || null;
+	}
+	async function open(options) {
+
+		state.stepKey = options.stepKey;
+		state.mapping = options.mapping;
+
+		const html = await $.ajax({
+			url: options.url,
+			type: "GET"
+		});
+
+		$("#modalContainer").html(html);
+
+		const modalEl = document.getElementById(options.modalId);
+
+		const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+		const lookup = resolveLookup(modalEl);
+
+		// =========================
+		// init
+		// =========================
+		modalEl.addEventListener("shown.bs.modal", () => {
+			lookup?.init?.(modalEl);
+		}, { once: true });
+
+		// =========================
+		// submit
+		// =========================
+		modalEl.addEventListener("click", (e) => {
+
+			if (e.target.id !== "btnSubmit") return;
+
+			const data = lookup?.getData?.(modalEl);
+
+			if (!data) {
+				alert("請先選擇資料");
+				return;
+			}
+
+			const store = window.AppBootstrap.get("FlowStore");
+
+			state.mapping.forEach(([field, key]) => {
+
+				window.GraphV2.notify(state.stepKey, field, data[key]);
+				store.setTouched(state.stepKey, field);
+			});
+
+			modal.hide();
+		});
+
+		// =========================
+		// destroy
+		// =========================
+		modalEl.addEventListener("hidden.bs.modal", () => {
+			lookup?.destroy?.(modalEl);
+			$("#modalContainer").empty();
+		});
+
+		modal.show();
+	}
+
+	return { open };
+
+})();
+function parseDate(input) {
+
+	if (input == null || input === "")
+		return null; 
+	if (input instanceof Date)
+		return isNaN(input.getTime()) ? null : input;
+
+	let str = String(input).trim();
+	 
+	if (/^\d{8}$/.test(str)) {
+
+		str = `${str.slice(0, 4)}-${str.slice(4, 6)}-${str.slice(6, 8)}`;
+	}
+	 
+	if (/^\d{4}\/\d{2}\/\d{2}$/.test(str)) {
+
+		str = str.replace(/\//g, "-");
+	} 
+
+	const d = new Date(str);
+
+	if (isNaN(d.getTime()))
+		return null;
+
+	return d;
+}
+
+window.ValidationRules = {
+
+	required: (val, ctx) => {
+
+		const type = ctx.type.toLowerCase() || "text"; 
+		if (val instanceof File)
+			return val ? true : "必填";
+
+		if (Array.isArray(val))
+			return val.length > 0 || "必填";
+
+		return (val === null || val === undefined || val === "")
+			? "必填"
+			: true;
+	},
+
+	min: (val, ctx) => {
+
+		if (val == null || val === "")
+			return true;
+
+		const type = ctx.type || "text";
+
+		switch (type) { 
+			case "virtual":
+				if (ctx.renderer == 'fileBadge') {
+					return parseFloat(val) >= parseFloat(ctx.arg)
+						|| `必需上傳${ctx.arg}檔案以上`; 
+				} 
+			case "number":
+				return parseFloat(val) >= parseFloat(ctx.arg)
+					|| `不可小於 ${ctx.arg}`; 
+			case "date":
+			case "time":
+				return parseDate(val) >= parseDate(ctx.arg)
+					|| `不可小於 ${ctx.arg}`; 
+			default:
+				return String(val).length >= parseInt(ctx.arg)
+					|| `至少 ${ctx.arg} 個字`;
+		}
+	},
+
+	max: (val, ctx) => {
+
+		if (val == null || val === "")
+			return true;
+
+		const type = ctx.type || "text";
+
+		switch (type) { 
+			case "number":
+				return parseFloat(val) <= parseFloat(ctx.arg)
+					|| `不可大於 ${ctx.arg}`; 
+			case "date":
+				return parseDate(val) <= parseDate(ctx.arg)
+					|| `不可大於 ${ctx.arg}`; 
+			default: 
+				return String(val).length <= parseInt(ctx.arg)
+					|| `不可超過 ${ctx.arg} 個字`;
+		}
+	}, 
+	accept: (file, ctx) => {
+
+		if (!file) return true;
+
+		const rules = ctx.arg
+			.split(",")
+			.map(x => x.trim().toLowerCase());
+
+		const fileName = file.name.toLowerCase();
+
+		const mime = (file.type || "").toLowerCase();
+
+		const valid = rules.some(rule => {
+
+			// 副檔名
+			if (rule.startsWith(".")) {
+				return fileName.endsWith(rule);
+			}
+
+			// mime
+			return mime.includes(rule);
+		});
+
+		return valid || `檔案格式需為 ${ctx.arg}`;
+	},
+
+	maxsize: (file, ctx) => {
+		if (!file) return true;
+
+		const maxMB = parseFloat(ctx.arg);
+		return file.size <= maxMB * 1024 * 1024
+			|| `檔案不可超過 ${maxMB}MB`;
+	},
+	// =========================
+	// 🔥 async validator（統一版本）
+	// =========================
+	// =========================
+	// 🔥 async validator（升級版）
+	// =========================
+	async: async (val, ctx) => {
+
+		if (val === undefined) return;
+
+		let res;
+
+		// =========================
+		// ⭐ FILE MODE
+		// =========================
+		if (val instanceof File) {
+
+			const formData = new FormData();
+			formData.append("file", val);
+
+			res = await fetch(ctx.url, {
+				method: "POST",
+				body: formData,
+				signal: ctx.signal
+			});
+
+		}
+		// =========================
+		// ⭐ MULTIPLE FILE
+		// =========================
+		else if (Array.isArray(val) && val[0] instanceof File) {
+
+			const formData = new FormData();
+
+			val.forEach((f, i) => {
+				formData.append(`files[${i}]`, f);
+			});
+
+			res = await fetch(ctx.url, {
+				method: "POST",
+				body: formData,
+				signal: ctx.signal
+			});
+		}
+		// =========================
+		// ⭐ NORMAL VALUE（原本邏輯）
+		// =========================
+		else {
+
+			res = await fetch(`${window.AppBasePath}${ctx.url}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					value: val,
+					stepKey: ctx.stepKey,
+					field: ctx.field,
+					fields: ctx.fields,
+					data: ctx.data
+				}),
+				signal: ctx.signal
+			});
+		}
+
+		const data = await res.json();
+
+		if (data.valid === false) {
+			return data.message || "驗證失敗";
+		}
+
+		return {
+			valid: true,
+			data: data.data || {},
+			message: data.message || ""
+		};
+	}
+};
+ 
+// =========================
+// Runtime Helpers
+// =========================
+window.RuntimeHelpers = (() => {
+
+	function getVirtual(el) {
+		return (
+			el.dataset.type =='virtual'
+				? "runtime"
+				: "store"
+		).toLowerCase();
+	}
+
+	function isRuntime(el) {
+		return getVirtual(el) === "runtime";
+	}
+
+	function getDisplay(el) {
+		return el.querySelector(".file-cnt-display")
+	}
+
+	function parseDisplayValue(el) {
+
+		const display = getDisplay(el);
+
+		const raw =
+			display?.textContent?.trim();
+
+		if (raw === "" || raw == null)
+			return null;
+
+		// number
+		if (/^-?\d+(\.\d+)?$/.test(raw)) {
+			return Number(raw);
+		}
+
+		// date
+		const d = parseDate(raw);
+
+		if (d)
+			return d;
+
+		return raw;
+	}
+
+	function setDisplayValue(el, value) {
+
+		const display = getDisplay(el);
+
+		if (!display)
+			return;
+
+		display.textContent =
+			value ?? "";
+	}
+
+	return {
+		getVirtual,
+		isRuntime,
+		getDisplay,
+		parseDisplayValue,
+		setDisplayValue
+	};
+
+})(); 
+window.FieldAdapters = (() => {
+
+	function triggerSelect2(el) {
+
+		if (
+			window.jQuery &&
+			jQuery(el).data("select2")
+		) {
+			jQuery(el).trigger("change");
+		}
+	}
+
+	// =========================
+	// helpers
+	// =========================
+	function same(el, value) {
+
+		return el.value === String(value ?? "");
+	}
+
+	function safeSet(el, next) {
+
+		if (same(el, next)) return;
+
+		el.value = next;
+	}
+
+	function defaultFocus(el) {
+		el.focus();
+	}
+
+	function defaultValidate() {
+		return true;
+	}
+
+	function defaultDestroy(el) {
+
+		if (el.__handler) {
+
+			el.removeEventListener(
+				el.__eventType || "input",
+				el.__handler
+			);
+
+			delete el.__handler;
+		}
+		// blur
+		if (el.__blurHandler) {
+
+			el.removeEventListener(
+				"blur",
+				el.__blurHandler
+			);
+
+			delete el.__blurHandler;
+		}
+		if (el.__vueStop) {
+			el.__vueStop();
+			delete el.__vueStop;
+		}
+		if (
+			window.jQuery &&
+			jQuery(el).data("select2")
+		) {
+
+			jQuery(el).off(
+				el.__eventType,
+				el.__handler
+			);
+			jQuery(el).select2("destroy");
+
+		}
+	}
+
+	function defaultDisable(el, disabled) {
+		// =========================
+		// FILE
+		// =========================
+		if (el.type === "file") {
+
+			el.disabled = disabled;
+
+			const wrapper = el.closest(".file-wrapper");
+
+			if (wrapper) {
+
+				// 1️⃣ actions（預覽/刪除）
+				const actions = wrapper.querySelector(".file-actions");
+				if (actions) {
+					actions.classList.toggle("d-none", disabled);
+				}
+
+				// 2️⃣ upload button（🔥直接隱藏）
+				const label = wrapper.querySelector(".file-picker-btn");
+				if (label) {
+					label.classList.toggle("d-none", disabled);
+				}
+
+				// 3️⃣ file line
+				const line = wrapper.querySelector(".file-line");
+				if (line) {
+					line.classList.toggle("text-muted", disabled);
+				}
+
+				// 4️⃣ wrapper state
+				wrapper.classList.toggle("is-disabled", disabled);
+			}
+
+			el.classList.toggle("readonly", disabled);
+			return;
+		}
+		if (el.tagName === "BUTTON") {
+			el.disabled = disabled;
+
+			el.classList.toggle("readonly", disabled);
+			return;
+		}
+		if (
+			el.tagName === "SELECT" ||
+			el.type === "checkbox" ||
+			el.type === "radio"
+		) {
+			el.disabled = disabled;
+		}
+		else {
+			el.readOnly = disabled;
+		}
+
+		el.classList.toggle(
+			"readonly",
+			disabled
+		);
+	}
+
+	function defaultClear(el) {
+
+		if ("value" in el) el.value = "";
+
+		if ("checked" in el) el.checked = false;
+	}
+
+	// =========================
+	// adapters
+	// =========================
+	const adapters = { 
+		virtual: {
+
+			getValue(el) {
+
+				return RuntimeHelpers.parseDisplayValue(el);
+			},
+
+			setValue(el, value) {
+
+				RuntimeHelpers.setDisplayValue(el, value);
+			},
+
+			bind(el, update) {
+
+				// runtime display
+				// 不綁 input event
+
+				el.__handler = update;
+			},
+
+			clear(el) {
+
+				RuntimeHelpers.setDisplayValue(el, "");
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+		// =========================
+		// text
+		// =========================
+		text: {
+
+			getValue(el) {
+				return el.value;
+			},
+
+			setValue(el, value) {
+
+				const next =
+					value == null
+						? ""
+						: String(value);
+
+				safeSet(el, next);
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "input";
+
+				el.addEventListener(
+					"input",
+					update
+				);
+			},
+
+			clear(el) {
+				el.value = "";
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// number
+		// =========================
+		number: {
+
+			getValue(el) {
+
+				return el.value === ""
+					? null
+					: Number(el.value);
+			},
+
+			setValue(el, value) {
+
+				const next =
+					value == null
+						? ""
+						: String(value);
+
+				safeSet(el, next);
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "input";
+
+				el.addEventListener(
+					"input",
+					update
+				);
+			},
+
+			clear(el) {
+				el.value = "";
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// checkbox
+		// =========================
+		checkbox: {
+
+			getValue(el) {
+				return el.checked;
+			},
+
+			setValue(el, value) {
+
+				const checked =
+					!!value;
+
+				if (el.checked === checked) {
+					return;
+				}
+
+				el.checked = checked;
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "change";
+
+				el.addEventListener(
+					"change",
+					update
+				);
+			},
+
+			clear(el) {
+				el.checked = false;
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// radio
+		// =========================
+		radio: {
+
+			getValue(el, container) {
+
+				const field =
+					el.dataset.field;
+
+				const col =
+					el.dataset.col;
+
+				const selector = col
+					? `input[data-field='${field}'][data-col='${col}']:checked`
+					: `input[data-field='${field}']:checked`;
+
+				const checked =
+					container.querySelector(selector);
+
+				return checked
+					? checked.value
+					: null;
+			},
+
+			setValue(el, value) {
+
+				const checked =
+					String(el.value) ===
+					String(value);
+
+				if (el.checked === checked) {
+					return;
+				}
+
+				el.checked = checked;
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "change";
+
+				el.addEventListener(
+					"change",
+					update
+				);
+			},
+
+			clear(el) {
+				el.checked = false;
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// file
+		// =========================
+		file: {
+
+			getValue(el) {
+
+				return el.files?.length
+					? (el.multiple
+						? Array.from(el.files)
+						: el.files[0])
+					: null;
+			},
+
+			setValue(el, value) {
+
+				const wrapper = el.closest(".file-wrapper");
+				if (!wrapper) return;
+
+				const nameEl = wrapper.querySelector(".file-name");
+				const actionsEl = wrapper.querySelector(".file-actions");
+				const lineEl = wrapper.querySelector(".file-line");
+
+				// =====================================================
+				// ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
+				// 🔥 KEY FIX：readonly / empty value 保護
+				// ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
+				if (value == null || value === "") {
+
+					// ❗不要清 UI（readonly 會進這裡）
+					return;
+				}
+
+				// =========================
+				// parse file name
+				// =========================
+				const fileName =
+					value instanceof File
+						? value.name
+						: Array.isArray(value)
+							? value.map(x =>
+								x instanceof File
+									? x.name
+									: (x?.name ?? String(x))
+							).join(", ")
+							: value && typeof value === "object"
+								? value.name
+								: typeof value === "string"
+									? value
+									: "";
+
+				const hasFile = !!fileName;
+
+				// =========================
+				// show filename
+				// =========================
+				if (nameEl) {
+					nameEl.textContent = fileName;
+					nameEl.classList.toggle("d-none", !hasFile);
+				}
+
+				// =========================
+				// tooltip sync
+				// =========================
+				if (lineEl) {
+					lineEl.dataset.title = fileName;
+				}
+
+				// =========================
+				// actions
+				// =========================
+				if (actionsEl) {
+					actionsEl.classList.toggle("d-none", !hasFile);
+				}
+			},
+
+			bind(el, update) {
+				el.addEventListener("change", update);
+			},
+
+			clear(el) {
+
+				el.value = "";
+
+				const wrapper = el.closest(".file-wrapper");
+				if (!wrapper) return;
+
+				wrapper.querySelector(".file-name")
+					?.classList.add("d-none");
+
+				wrapper.querySelector(".file-actions")
+					?.classList.add("d-none");
+
+				wrapper.querySelector(".file-name").textContent = "";
+
+				wrapper.querySelector(".file-line")
+					?.setAttribute("data-title", "");
+			},
+
+			focus: defaultFocus,
+			disable: defaultDisable,
+			validate: defaultValidate,
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// select
+		// =========================
+		select: {
+
+			getValue(el) {
+
+				if (el.classList.contains("dropdownColor")) {
+
+					const color =
+						el.selectedOptions[0]
+							?.dataset.color;
+
+					el.style.backgroundColor = color || "";
+				}
+
+				return el.value;
+			},
+
+			setValue(el, value) {
+
+				const next =
+					value == null
+						? ""
+						: String(value);
+
+				if (el.value === next) {
+					if (el.classList.contains("dropdownColor")) {
+						const color =
+							el.selectedOptions[0]
+								?.dataset.color;
+						el.style.backgroundColor = color || "";
+					}
+					return;
+				}
+
+				el.value = next;
+
+				if (el.classList.contains("dropdownColor")) { 
+					const color =
+						el.selectedOptions[0]
+							?.dataset.color; 
+					el.style.backgroundColor = color || "";
+				}
+
+				triggerSelect2(el);
+			},
+
+			bind(el, update) {
+
+				const $el = $(el);
+
+				el.__handler = update;
+				el.__eventType = "change";
+
+				if ($el.data("select2")) {
+
+					const handler = () => update({ target: el });
+
+					el.__handler = handler;
+					el.__eventType =
+						"select2:select select2:clear change";
+
+					$el.on(el.__eventType, handler);
+
+					return;
+				}
+
+				el.addEventListener(
+					"change",
+					update
+				);
+			},
+
+			clear(el) {
+
+				el.value = "";
+				triggerSelect2(el);
+			},
+
+			focus: defaultFocus,
+
+			disable(el, disabled) {
+				const $el = $(el);
+
+				// ✔ 只做這件事（核心）
+				$el.prop("disabled", disabled);
+
+				// ✔ select2 同步（可有可無，但建議留）
+				if ($el.data("select2")) {
+					$el.trigger("change.select2");
+				}
+				//el.disabled = disabled;
+				//triggerSelect2(el);
+			},
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		}
+	};
+
+	// =========================
+	// resolver
+	// =========================
+	function resolve(el) { 
+		const type = (el.dataset.type || "").toLowerCase();
+
+		if (type === "virtual" || window.RuntimeHelpers.isRuntime(el)) {
+			return adapters.virtual;
+		}
+		if (el.type === "checkbox") return adapters.checkbox;
+		if (el.type === "radio") return adapters.radio;
+		if (el.type === "file") return adapters.file;
+		if (el.type === "number") return adapters.number;
+		if (el.tagName === "SELECT") return adapters.select;
+
+		return adapters.text;
+	}
+
+	return {
+		resolve
+	};
+
+})();
+// =========================
+// ✅ FieldBinder（初始化✔ + UX 正確）
+// =========================
+window.FieldBinder = (() => { 
+	function editable(container, stepKey) {
+		bindFields(container, stepKey, "editable");
+	}
+
+	function readOnly(container, stepKey) {
+		bindFields(container, stepKey, "readOnly");
+	}
+	function bindFieldEvents(
+		el,
+		stepKey,
+		container,
+		adapter,
+		store
+	) {
+
+		const update = async (e) => {
+
+			const target =
+				e?.target || el;
+
+			const key =
+				getKey(target);
+
+			store.setTouched(
+				stepKey,
+				key
+			);
+
+			const newValue =
+				adapter.getValue(
+					target,
+					container
+				);
+
+			if (target.type === "file") {
+
+				const result =
+					await window.PreviewModule.importfile({
+						stepKey,
+						key,
+						store,
+						container,
+						target,
+						newValue
+					});
+
+				if (!result) {
+					alert("fail");
+				}
+
+				return;
+			}
+
+			GraphV2.notify(
+				stepKey,
+				key,
+				newValue,
+				{
+					virtual:
+						RuntimeHelpers.getVirtual(target)
+				}
+			);
+		};
+
+		adapter.bind(
+			el,
+			update
+		);
+
+		const blurHandler = () => {
+
+			store.setTouched(
+				stepKey,
+				getKey(el)
+			);
+		};
+
+		el.__blurHandler =
+			blurHandler;
+
+		el.addEventListener(
+			"blur",
+			blurHandler
+		);
+	}
+
+	function bindFieldWatch(
+		el,
+		stepKey,
+		key,
+		store
+	) {
+
+		const stop = Vue.watch(
+
+			() => ({
+				error:
+					store.getError(stepKey, key),
+
+				status:
+					store.getStatus(stepKey, key),
+
+				touched:
+					store.isTouched(stepKey, key),
+
+				submitted:
+					store.isStepSubmitted(stepKey),
+
+				val:
+					store.get(stepKey, key)
+			}),
+
+			(state) => {
+
+				applyValue(
+					el,
+					state.val
+				);
+
+				const ui =
+					resolveFieldState({
+						error:
+							state.error,
+
+						status:
+							state.status,
+
+						touched:
+							state.touched,
+
+						submitted:
+							state.submitted,
+
+						val:
+							state.val,
+
+						required:
+							el.dataset.rule?.includes("required")
+					});
+
+				if (!ui.state) {
+
+					FieldStatus.clear(el);
+					return;
+				}
+
+				FieldStatus.set(el, ui.state, ui.message);
+			},
+
+			{
+				immediate: true
+			}
+		);
+
+		el.__vueStop = stop;
+	}
+	function getInitialValue(el, stepKey, store) {
+
+		let value = store.get(stepKey, getKey(el));
+
+		if (!isEmpty(value)) {
+			return value;
+		}
+
+		if (el.dataset.type === "label" || el.type === "hidden") {
+
+			return el.type === "hidden"
+				? (el.value || null)
+				: (el.dataset.value ?? el.textContent.trim() ?? null);
+		}
+
+		if (el.type === "checkbox") {
+			return el.checked;
+		}
+
+		if (el.type === "radio") {
+			return el.checked ? el.value : null;
+		}
+
+		if (el.tagName === "SELECT") {
+			return el.dataset.value ?? el.value;
+		}
+
+		if (el.type === "file") {
+			return null;
+		}
+
+		return el.dataset.value ?? el.value;
+	}
+	function waitForOptionsReady(el, timeout = 5000) {
+
+		return new Promise(resolve => {
+
+			const $el = $(el);
+
+			let done = false;
+			let timer = null;
+
+			const isSelect2 = !!$el.data("select2");
+
+			const check = () => {
+
+				if (done) return;
+
+				// =========================
+				// 1. native select options ready
+				// =========================
+				const hasOptions =
+					el.options &&
+					el.options.length > 1;
+
+				// =========================
+				// 2. custom async flag（你 API 可控制）
+				// =========================
+				const datasetReady =
+					el.dataset.optionsReady === "1" ||
+					el.dataset.asyncReady === "1" ||
+					el.dataset.optionsLoaded === "1";
+
+				// =========================
+				// 3. select2 render ready（避免 early setValue）
+				// =========================
+				const select2Ready =
+					!isSelect2 ||
+					($el.data("select2") &&
+						$el.data("select2").$container);
+
+				// =========================
+				// READY CONDITION
+				// =========================
+				if (hasOptions || datasetReady) {
+
+					done = true;
+					clearTimeout(timer);
+					resolve(true);
+					return;
+				}
+
+				requestAnimationFrame(check);
+			};
+
+			// =========================
+			// SAFETY TIMEOUT（避免 deadlock）
+			// =========================
+			timer = setTimeout(() => {
+
+				if (!done) {
+					done = true;
+					resolve(false);
+				}
+
+			}, timeout);
+
+			check();
+		});
+	}
+	async function initSelectLifecycle(el, value, adapter) {
+		const $el = $(el);
+
+		// 等 options ready（editable / readonly 都要）
+		await waitForOptionsReady(el);
+
+		// 先確保 DOM options 已存在
+		adapter.setValue(el, value);
+
+		// select2 sync（如果有）
+		if ($el.data("select2")) {
+			$el.val(value).trigger("change.select2");
+		} else {
+			el.value = value;
+			el.dispatchEvent(new Event("change", { bubbles: true }));
+		}
+	}
+	async function bindFields(container, stepKey, mode = "editable") {
+
+		const plugins = AppBootstrap.get("FilePlugin");
+		const store = AppBootstrap.get("FlowStore");
+
+		const isReadOnly = mode === "readOnly";
+
+		const tasks = [];
+
+		container.querySelectorAll("[data-field]").forEach(el => {
+
+			if (el.dataset.bound) return;
+			el.dataset.bound = "1";
+
+			const key = getKey(el);
+			const adapter = FieldAdapters.resolve(el);
+
+			const value = getInitialValue(el, stepKey, store);
+
+			tasks.push((async () => {
+
+				// =====================
+				// FILE INIT（共用）
+				// =====================
+				if (el.type === "file") {
+					plugins.init(el, { stepKey, key });
+				}
+
+				// =====================
+				// SELECT lifecycle（關鍵）
+				// =====================
+				if (el.tagName === "SELECT") {
+					await waitForOptionsReady(el);
+					await initSelectLifecycle(el, value, adapter);
+				} else {
+					adapter.setValue(el, value);
+				}
+
+				// =====================
+				// UI STATE（最後統一）
+				// =====================
+				if (isReadOnly) {
+					adapter.disable(el, true);
+					return;
+				}
+
+				// =====================
+				// EDITABLE ONLY
+				// =====================
+				registerValidationRules(el, stepKey);
+
+				if (RuntimeHelpers.getVirtual(el) === "runtime") {
+					GraphV2.setRuntime(stepKey, key, adapter.getValue(el));
+					return;
+				}
+
+				if (!isEmpty(value)) {
+					GraphV2.notify(stepKey, key, value);
+				}
+
+				bindFieldEvents(el, stepKey, container, adapter, store);
+				bindFieldWatch(el, stepKey, key, store);
+
+			})());
+		});
+
+		// 🔥 保證順序（真正不亂序）
+		for (const t of tasks) {
+			await t;
+		}
+	}
+	function resolveFieldState({
+		error,
+		status,
+		touched,
+		submitted,
+		val,
+		required
+	}) {
+
+		const show = touched || submitted;
+
+		const isEmptyval =
+			val === null ||
+			val === undefined ||
+			val === "" ||
+			(Array.isArray(val) && val.length === 0) ||
+			(val instanceof File && !val);
+
+		// required
+		if (show && isEmptyval && required) {
+
+			return {
+				state: "error",
+				message: "必填"
+			};
+		}
+		if (!show && !isEmptyval && isEmpty(error) && !required) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+		// valid
+		if (show && !isEmptyval && isEmpty(error)) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		// untouched empty
+		if (!show && !val) {
+
+			return {
+				state: null,
+				message: ""
+			};
+		}
+
+		// processing
+		if (status === "processing") {
+
+			if (val) {
+
+				return {
+					state: "success",
+					message: ""
+				};
+			}
+
+			if (!val && !required) {
+
+				return {
+					state: null,
+					message: ""
+				};
+			}
+
+			return {
+				state: "processing",
+				message: ""
+			};
+		}
+
+		// error
+		if (status === "error") {
+
+			return {
+				state: "error",
+				message: error || ""
+			};
+		}
+		if (status === "success" && !required) {
+			return {
+				state: null,
+				message: ""
+			};
+		}
+		// success
+		if (status === "success") {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		return {
+			state: null,
+			message: ""
+		};
+	}
+	function setReadonly(stepKey,field,readonly) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return;
+
+		const type = (el.type || "").toLowerCase();
+
+		if (
+			el.tagName === "SELECT" ||
+			type === "checkbox" ||
+			type === "radio"
+		) {
+
+			el.disabled = readonly;
+
+		} else {
+
+			el.readOnly = readonly;
+		}
+
+		el.classList.toggle(
+			"readonly",
+			readonly
+		);
+	}
+
+	function setSpecailRadio(stepKey, field, targetValue) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return; 
+		const type = (el.type || el.dataset.type || "").toLowerCase();
+		const radios = el.querySelectorAll('input[type="' + type +'"]'); 
+	 
+		let targetRadio = null;
+		let otherRadios = [];
+		 
+		for (let i = 0; i < radios.length; i++) {
+			const radio = radios[i];
+			if (String(radio.value) === String(targetValue)) {
+				targetRadio = radio;
+			} else {
+				otherRadios.push(radio);
+			}
+		}
+
+		 
+		if (targetRadio) {
+			targetRadio.checked = false;
+			targetRadio.disabled = true;
+			targetRadio.removeAttribute('checked');
+			targetRadio.style.pointerEvents = 'none';
+			if (targetRadio.parentElement) {
+				targetRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+
+		 
+		for (let j = 0; j < otherRadios.length; j++) {
+			const otherRadio = otherRadios[j];
+			otherRadio.checked = true;
+			otherRadio.disabled = true; // 鎖死
+			otherRadio.setAttribute('checked', 'checked');
+			otherRadio.style.pointerEvents = 'none';
+			if (otherRadio.parentElement) {
+				otherRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+	}
+	function bindLookupModal(stepKey, field, options) {
+
+		const input = findField(stepKey, field);
+		if (!input) return;
+
+		input.readOnly = true;
+		input.classList.add("lookup-input");
+
+		// 防重複綁定
+		if (input._lookupHandler) {
+			input.removeEventListener("click", input._lookupHandler);
+		}
+
+		input._lookupHandler = () => {
+
+			const checkbox =
+				document.querySelector(`#ctrl_${field} input[type='checkbox']`);
+
+			if (checkbox?.checked) return;
+
+			LookupEngineV7.open({
+				url: options.modalUrl,
+				modalId: options.modalId,
+
+				stepKey,
+				mapping: options.mapping
+			});
+		};
+
+		input.addEventListener("click", input._lookupHandler);
+	}
+	function bindReadonlyGroup(stepKey, field,
+		targets,
+		labelText = "") {
+		const container = document.getElementById('ctrl_' + field);
+
+		if (!container)
+			return;
+
+		const wrapper = document.createElement("div");
+		wrapper.className = "form-check mb-0";
+
+		const checkbox = document.createElement("input");
+		checkbox.type = "checkbox";
+		checkbox.className = "form-check-input";
+		checkbox.id = `chk_${field}`;
+
+		const label = document.createElement("label");
+		label.className = "form-check-label";
+		label.htmlFor = checkbox.id;
+		label.textContent = labelText;
+
+		const applyState = (checked) => {
+
+			targets.forEach(t => {
+
+				//const field = document.querySelector(
+				//	`[data-field='${t.field}']`
+				//);
+				const field = findField(stepKey, t.field)
+				if (!field)
+					return;
+
+				if (checked) {
+
+					field.value = t.value ?? "";
+					field.readOnly = true;
+
+
+				} else {
+
+					field.value = "";
+					field.readOnly = false;
+				}
+				GraphV2.notify(stepKey, t.field, field.value);
+				field.dispatchEvent(
+					new Event("change", { bubbles: true })
+				);
+			});
+		};
+
+		checkbox.addEventListener("change", () => {
+			applyState(checkbox.checked);
+		});
+
+		wrapper.appendChild(checkbox);
+
+		if (labelText)
+			wrapper.appendChild(label);
+
+		container.appendChild(wrapper);
+
+		return checkbox; 
+	} 
+	function refreshUI(stepKey, field, value) { 
+		const el = findField(stepKey, field); 
+		if (!el) return; 
+		applyValue(el, value);
+	}
+	function applyValue(el, value) {
+		const adapter = FieldAdapters.resolve(el); 
+		adapter.setValue(el, value);
+	}
+	function unbindAll(container) { 
+		container
+			.querySelectorAll("[data-field]")
+			.forEach(el => { 
+				const adapter = FieldAdapters.resolve(el); 
+				adapter.destroy(el);  
+				delete el.dataset.bound;
+			});
+	}
+	function setOptions(stepKey, key, list) { 
+		const store = AppBootstrap.get("FlowStore"); 
+		const el = findField(stepKey, key);
+		if (!el)
+			return;
+
+		if (el.tagName === "SELECT") { 
+			let optionsHtml = '<option value="">-- 請選擇 --</option>'; 
+			let dataList = list;
+			if (typeof list === "string") {
+				try {
+					dataList = JSON.parse(list);
+				} catch (e) {
+					console.error("解析 JSON 失敗", e);
+					return;
+				}
+			}
+
+			if (Array.isArray(dataList)) {
+				dataList.forEach(item => {
+					const val = item.value;
+					const txt = item.text;
+					optionsHtml += `<option value="${val}">${txt}</option>`;
+				});
+			} 
+			el.innerHTML = optionsHtml; 
+			let val = store.get(stepKey, key) || el.dataset.value;
+			GraphV2.notify(stepKey, key, val);
+		} 
+	}
+	return {
+		editable,
+		readOnly, bindLookupModal,bindFields, setReadonly, setOptions, refreshUI, unbindAll, setSpecailRadio, bindReadonlyGroup };
+
+})();
+
+window.FieldStatus = (() => {
+
+	const icons = {
+		success: '<i class="bi bi-check-circle text-success"></i>',
+		error: '<i class="bi bi-x-circle text-danger"></i>',
+		processing: '<i class="bi bi-arrow-repeat rotate text-primary"></i>'
+	};
+
+	// =========================
+	// Renderer Registry
+	// =========================
+	const renderers = {};
+
+	// =========================
+	// helper
+	// =========================
+	function resolveRenderer(el) {
+
+		const name = el.dataset.renderer;
+
+		if (name && renderers[name]) {
+			return renderers[name];
+		}
+
+		return renderers.default;
+	}
+
+	// =========================
+	// default renderer
+	// =========================
+	renderers.default = {
+
+		set(field, el, state, msg) {
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const msgEl =
+				field.querySelector(".field-msg");
+
+			if (msgEl) {
+				msgEl.textContent = msg || "";
+			}
+
+			el.classList.remove("is-valid", "is-invalid");
+
+			if (!state) {
+
+				field.classList.remove("has-icon");
+
+				if (icon) icon.innerHTML = "";
+				return;
+			}
+
+			field.classList.add("has-icon");
+
+			if (state === "error") {
+				el.classList.add("is-invalid");
+			}
+
+			if (state === "success") {
+				el.classList.add("is-valid");
+			}
+
+			if (icon) {
+				icon.innerHTML = icons[state] || "";
+			}
+		},
+
+		clear(field, el) {
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const msgEl =
+				field.querySelector(".field-msg");
+
+			if (msgEl) msgEl.textContent = "";
+
+			el.classList.remove("is-valid", "is-invalid");
+			field.classList.remove("has-icon");
+
+			if (icon) icon.innerHTML = "";
+		}
+	};
+
+	// =========================
+	// virtual renderer (通用 display)
+	// =========================
+	renderers.virtual = {
+
+		set(field, el, state, msg) {
+
+			let msgEl =
+				field.querySelector(".field-msg");
+
+			if (!msgEl && state === "error") {
+
+				msgEl = document.createElement("div");
+				msgEl.className =
+					"field-msg text-danger small mt-1";
+
+				field.appendChild(msgEl);
+			}
+
+			if (msgEl) {
+				msgEl.textContent =
+					state === "error" ? msg : "";
+			}
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const display =
+				field.querySelector("[data-role='display']");
+
+			field.classList.remove("is-valid", "is-invalid");
+
+			icon?.classList.remove(
+				"text-success",
+				"text-danger",
+				"text-secondary",
+				"text-primary"
+			);
+
+			display?.classList.remove(
+				"bg-success",
+				"bg-danger",
+				"bg-secondary",
+				"bg-primary"
+			);
+
+			if (!state) {
+
+				icon?.classList.add("text-secondary");
+				display?.classList.add("bg-secondary");
+				return;
+			}
+
+			if (state === "error") {
+
+				field.classList.add("is-invalid");
+
+				icon?.classList.add("text-danger");
+				display?.classList.add("bg-danger");
+				return;
+			}
+
+			if (state === "success") {
+
+				field.classList.add("is-valid");
+
+				icon?.classList.add("text-success");
+				display?.classList.add("bg-success");
+				return;
+			}
+
+			if (state === "processing") {
+
+				icon?.classList.add("text-primary");
+				display?.classList.add("bg-primary");
+			}
+		},
+
+		clear(field, el) {
+
+			const msgEl =
+				field.querySelector(".field-msg");
+
+			msgEl?.remove();
+
+			field.classList.remove("is-valid", "is-invalid");
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const display =
+				field.querySelector("[data-role='display']");
+
+			icon?.classList.remove(
+				"text-success",
+				"text-danger",
+				"text-primary"
+			);
+
+			icon?.classList.add("text-secondary");
+
+			display?.classList.remove(
+				"bg-success",
+				"bg-danger",
+				"bg-primary"
+			);
+
+			display?.classList.add("bg-secondary");
+		}
+	};
+
+	// =========================
+	// fileBadge renderer（如果你未來還有 file count UI）
+	// =========================
+	renderers.fileBadge = {
+
+		set(field, el, state, msg) {
+
+			let msgEl = field.querySelector(".field-msg");
+			if (!msgEl && state === "error") {
+				msgEl = document.createElement("div");
+				msgEl.className = "field-msg text-danger small mt-1";
+				field.appendChild(msgEl);
+			}
+			if (msgEl) msgEl.textContent = state === "error" ? msg : "";
+
+			const fileIcon = field.querySelector(".bi-file-earmark, .bi-file-earmark-text");
+			const badge = field.querySelector(".file-cnt-display");
+
+			field.classList.remove("is-valid", "is-invalid");
+			if (fileIcon) fileIcon.classList.remove("text-success", "text-danger", "text-secondary");
+			if (badge) badge.classList.remove("bg-success", "bg-danger", "bg-secondary");
+
+			if (state === "error") {
+				field.classList.add("is-invalid");
+				if (fileIcon) fileIcon.classList.add("text-danger");
+				if (badge) badge.classList.add("bg-danger");
+			}
+			else if (state === "success") {
+				field.classList.add("is-valid");
+				if (fileIcon) fileIcon.classList.add("text-success");
+				if (badge) badge.classList.add("bg-success");
+			}
+			else {
+				if (fileIcon) fileIcon.classList.add("text-secondary");
+				if (badge) badge.classList.add("bg-secondary");
+			}
+			 
+		},
+
+		clear(field, el) {
+
+			const msgEl = field.querySelector(".field-msg");
+			if (msgEl) msgEl.remove();
+
+			field.classList.remove("is-valid", "is-invalid");
+
+			const fileIcon = field.querySelector(".bi-file-earmark, .bi-file-earmark-text");
+			const badge = field.querySelector(".file-cnt-display");
+
+			if (fileIcon) {
+				fileIcon.classList.remove("text-success", "text-danger");
+				fileIcon.classList.add("text-secondary");
+			}
+			if (badge) {
+				badge.classList.remove("bg-success", "bg-danger");
+				badge.classList.add("bg-secondary");
+			}
+		}
+	};
+
+	// =========================
+	// public API
+	// =========================
+	return {
+
+		register(name, renderer) {
+			renderers[name] = renderer;
+		},
+
+		resolveRenderer,
+
+		set(el, state, msg = "") {
+
+			const field =
+				el.closest(".field");
+
+			if (!field) return;
+
+			const renderer =
+				resolveRenderer(el);
+
+			renderer.set(
+				field,
+				el,
+				state,
+				msg
+			);
+		},
+
+		clear(el) {
+
+			const field =
+				el.closest(".field");
+
+			if (!field) return;
+
+			const renderer =
+				resolveRenderer(el);
+
+			renderer.clear(field, el);
+		}
+	};
+
+})();
+ 
+ 
+window.GraphV2 = (() => { 
+	let nodes = [];
+	const depIndex = new Map();
+	const nodeMap = new Map();
+	 
+	const runtimeState = new Map();
+	const versionMap = new Map();
+	const asyncCache = new Map();
+	const computedCache = new Map();
+
+	let queue = [];
+	let scheduled = false;
+
+	const runningNodes = new Map();
+	function has(id) {
+		return nodeMap.has(id);
+	}
+	// =========================================================
+	// register
+	// =========================================================
+	function register(node) {
+		nodes.push(node);
+		nodeMap.set(node.id, node);
+		for (const dep of node.deps || []) {
+			if (!depIndex.has(dep)) depIndex.set(dep, []);
+			depIndex.get(dep).push(node);
+		}
+	}
+
+	// =========================================================
+	// version
+	// =========================================================
+	const key = (s, f) => `${s}.${f}`;
+
+	function getVersion(stepKey, field) { 
+		return versionMap.get(key(stepKey, field)) || 0;
+	}
+
+	function bumpVersion(stepKey, field) {
+		const k = key(stepKey, field);
+		const v = (versionMap.get(k) || 0) + 1;
+		versionMap.set(k, v);
+		return v;
+	}
+
+	// =========================================================
+
+	// dep hash
+	// =========================================================
+
+	function depHash(stepKey, node) {
+		return (node.deps || [])
+			.map(d => getVersion(stepKey, d))
+			.join("|");
+	}
+
+
+	// =========================================================
+	// topo (FIXED SAFE)
+	// =========================================================
+	function topo(startField, stepKey) {
+		const result = [];
+		const visiting = new Set();
+		const visited = new Set();
+		const visitedNodes = new Set();
+		function dfs(field, path = []) {
+			const k = `${stepKey}.${field}`;
+
+			if (visiting.has(k)) {
+				throw new Error(`Cycle detected: ${[...path, field].join(" -> ")}`);
+			}
+
+			if (visited.has(k)) return;
+
+			visiting.add(k);
+
+			const list = depIndex.get(field) || [];
+
+			for (const n of list) {
+
+				if (n.stepKey !== stepKey) continue;
+				if (visitedNodes.has(n.id)) {
+					continue;
+				}
+
+				visitedNodes.add(n.id);
+				if (n.type === "computed" && n.target) {
+					dfs(n.target, [...path, field]);
+				}
+
+				result.push(n);
+			}
+
+			visiting.delete(k);
+			visited.add(k);
+		}
+
+		dfs(startField);
+
+		return result;
+	}
+
+	// =========================================================
+	// scheduler
+	// =========================================================
+	function scheduleRun(stepKey, field) {
+		queue.push({ stepKey, field });
+		if (scheduled) return;
+		scheduled = true;
+		queueMicrotask(() => {
+			const tasks = queue;
+			queue = [];
+			scheduled = false;
+			for (const t of tasks) {
+				exec(t.stepKey, t.field);
+			}
+		});
+	}
+
+	// =========================================================
+
+	// notify
+	// =========================================================
+	function notify(stepKey, field, value, options = {}) { 
+		const {
+			virtual = "store"
+		} = options;
+		if (virtual === "runtime") {
+			setRuntime(stepKey, field, value); 
+			return;
+		}
+		// normal flow
+		const store = AppBootstrap.get("FlowStore");
+
+		const prev = store.get(stepKey, field);
+	 
+		if (Object.is(prev, value)) return;
+		 
+		store.safeSet(stepKey, field, value);
+
+		bumpVersion(stepKey, field);
+		scheduleRun(stepKey, field);
+	}
+	//function notify(stepKey, field, value) { 
+
+	//	const store = AppBootstrap.get("FlowStore"); 
+	//	const prev = store.get(stepKey, field);
+	//	if (Object.is(prev, value)) return;
+
+	//	store.safeSet(stepKey, field, value);
+
+	//	bumpVersion(stepKey, field);
+
+	//	scheduleRun(stepKey, field);
+	//}
+
+	function batchNotify(stepKey, patch) {
+
+		const store = AppBootstrap.get("FlowStore");
+
+		const changedFields = [];
+
+		for (const [f, v] of Object.entries(patch)) {
+
+			const prev = store.get(stepKey, f);
+
+			if (Object.is(prev, v))
+				continue;
+
+			store.safeSet(stepKey, f, v);
+
+			bumpVersion(stepKey, f);
+
+			changedFields.push(f);
+		}
+
+		for (const field of changedFields) {
+			scheduleRun(stepKey, field);
+		}
+	}
+
+	// =========================================================
+	// executor
+	// =========================================================
+	async function exec(stepKey, field) {
+
+		const store = AppBootstrap.get("FlowStore");
+
+		const list = topo(field, stepKey);
+
+		for (const n of list) { 
+			const nodeKey = `${n.id}`; 
+			try { 
+				const localVersion = getVersion(stepKey, field); 
+				// =========================
+				// validation abort control
+				// =========================
+				const prev = runningNodes.get(nodeKey);
+
+				if (prev?.abort) prev.abort.abort();
+
+				const abort = new AbortController();
+
+				runningNodes.set(nodeKey, {
+					version: localVersion,
+					abort
+				});
+				// stale guard
+				//if (
+				//	(n.type === "validation" || n.type === "effect")  
+				//) {
+				//	continue;
+				//}
+
+				// =========================================================
+				// VALIDATION (FIXED)
+				// =========================================================
+				if (n.type === "validation") {
+					const target =
+						n.target ||
+						n.deps?.[0];
+
+					if (!target) continue;
+					store.setStatus(stepKey, target, "processing"); 
+					const localVersion = getVersion(stepKey, target); 
+					const cacheKey = `${n.id}`; 
+					let cached = asyncCache.get(cacheKey);
+					let promise;
+
+					if (cached && cached.version === localVersion) { 
+						promise = cached.promise; 
+					} else { 
+						promise = n.run({
+							data: store.getStep(stepKey),
+							stepKey,
+							signal: abort.signal
+						});
+
+						asyncCache.set(cacheKey, {
+							version: localVersion,
+							promise
+						});
+					}
+
+					if (abort.signal.aborted) continue;
+
+					const result = await promise;
+
+					const current = asyncCache.get(cacheKey);
+
+					if (current?.promise === promise) {
+						asyncCache.delete(cacheKey);
+					}
+
+					if (abort.signal.aborted) continue;
+
+					if (localVersion !== getVersion(stepKey, target)) {
+						continue;
+					}
+
+					if (result !== true && result?.valid !== true) {
+
+						store.setError(
+							stepKey,
+							target,
+							result.message || result
+						);
+
+						store.setStatus(
+							stepKey,
+							target,
+							"error"
+						);
+
+						break;
+					}
+
+					store.clearError(stepKey, target);
+
+
+					store.setStatus(
+						stepKey,
+						target,
+						"success"
+					);
+				}
+
+				// =========================================================
+
+				// COMPUTED (FIXED SAFE)
+				// =========================================================
+				else if (n.type === "computed") { 
+					const nodeAbort = runningNodes.get(nodeKey)?.abort; 
+					// =========================
+					// dep snapshot
+					// =========================
+					const localHash = depHash(stepKey, n); 
+					const cacheKey = `${stepKey}.${n.id}`;
+
+					const cached = computedCache.get(cacheKey);
+
+					// lazy cache
+					if (cached?.hash === localHash) {
+						continue;
+					}
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// compute
+					// =========================
+					const value = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// stale deps guard
+					// IMPORTANT
+					// =========================
+					const latestHash = depHash(stepKey, n);
+
+					if (localHash !== latestHash) {
+						continue;
+					}
+
+					// =========================
+					// cache update
+					// =========================
+					computedCache.set(
+						cacheKey,
+						{
+							hash: latestHash,
+							value
+						}
+					);
+
+					// =========================
+					// same value skip
+					// =========================
+					const prev = getRuntime(stepKey, n.target) ?? store.get(stepKey, n.target);
+
+
+					if (Object.is(prev, value)) {
+						continue;
+					}
+
+					// =========================
+					// write
+					// =========================
+					store.safeSet(
+						stepKey,
+						n.target,
+						value
+					);
+
+					bumpVersion(
+						stepKey,
+						n.target
+					);
+
+					//FieldBinder?.refreshUI?.(
+					//	stepKey,
+					//	n.target,
+					//	value
+					//);
+				}
+
+				// =========================================================
+				// EFFECT
+				// =========================================================
+				else if (n.type === "effect") {  
+					const localVersion = getVersion(stepKey, n.target); 
+					const nodeAbort = runningNodes.get(nodeKey)?.abort; 
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					const result = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// stale guard
+					if (localVersion !== getVersion(stepKey, n.target)) {
+						continue;
+					}
+
+					if (result?.patch) { 
+						batchNotify(stepKey,result.patch);
+					}
+
+				}
+
+				// =========================================================
+				// UI
+				// =========================================================
+				else if (n.type === "ui") {
+					const nodeAbort = runningNodes.get(nodeKey)?.abort;
+
+					// =========================
+					// dependency snapshot
+					// =========================
+					const localHash = depHash(stepKey, n);
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					const result = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// stale guard
+					// deps changed while awaiting
+					// =========================
+					const latestHash = depHash(stepKey, n);
+
+					if (localHash !== latestHash) {
+						continue;
+					}
+
+					// =========================
+					// optional patch
+					// =========================
+					if (result?.patch) {
+						batchNotify(stepKey,result.patch);
+					}
+				}
+
+
+				// =========================================================
+				// BIND
+				// =========================================================
+				else if (n.type === "bind") {
+					const nodeAbort =runningNodes.get(nodeKey)?.abort;
+
+					// =========================
+					// dependency snapshot
+					// =========================
+					const localHash = depHash(stepKey, n);
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					const result = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// stale guard
+					// deps changed while awaiting
+					// =========================
+					const latestHash = depHash(stepKey, n);
+
+					if (localHash !== latestHash) {
+						continue;
+					}
+
+					// =========================
+					// bind patch support
+					// =========================
+					if (result?.patch) { 
+						batchNotify( stepKey, result.patch );
+					}
+				}
+			} catch (e) {
+				console.error("Graph error:", e);
+			}
+			finally { 
+				runningNodes.delete(nodeKey);
+			}
+		}
+	}
+	function clearStep(stepKey) {
+		// computed cache
+		for (const k of computedCache.keys()) { 
+			if (k.startsWith(stepKey + ".")) {
+				computedCache.delete(k);
+			}
+		}
+
+		// async cache
+		for (const k of asyncCache.keys()) { 
+			if (k.startsWith(stepKey + ".")) {
+				asyncCache.delete(k);
+			}
+		}
+
+		// running nodes
+		for (const [k, v] of runningNodes.entries()) { 
+			if (k.startsWith(stepKey + ".")) {
+				v.abort?.abort();
+				runningNodes.delete(k);
+			}
+		}
+	}
+	// =========================
+	// validate step
+	// =========================
+	async function validateStep(stepKey) { 
+		const store = AppBootstrap.get("FlowStore"); 
+		// 找出此 step 所有 validation nodes
+		const validations =
+			nodes.filter(n =>
+				n.stepKey === stepKey &&
+				n.type === "validation"
+			);
+
+		// =========================
+		// 執行 validation
+		// =========================
+		for (const n of validations) { 
+			const field = n.target || n.deps?.[0]; 
+			if (!field)
+				continue; 
+			// 觸發 validation
+			await exec(stepKey, field);
+		}
+
+		// =========================
+		// 檢查 error
+		// =========================
+		const stepErrors = store.getErrors(stepKey) || {};
+
+		for (const key in stepErrors) { 
+			if (stepErrors[key]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+	// =========================
+	// ⭐ NEW
+	// unregister step graph
+	// =========================
+	function unregisterStep(stepKey) {
+
+		// =========================
+		// remove nodes
+		// =========================
+		nodes = nodes.filter(n => n.stepKey !== stepKey);
+
+		// =========================
+		// rebuild depIndex
+		// =========================
+		depIndex.clear();
+
+		for (const n of nodes) {
+
+			for (const dep of (n.deps || [])) {
+
+				if (!depIndex.has(dep)) {
+					depIndex.set(dep, []);
+				}
+
+				depIndex.get(dep).push(n);
+			}
+		}
+
+		// =========================
+		// remove nodeMap
+		// =========================
+		for (const [k, v] of nodeMap.entries()) {
+
+			if (v.stepKey === stepKey) {
+				nodeMap.delete(k);
+			}
+		}
+
+		// =========================
+		// remove versions
+		// =========================
+		for (const k of versionMap.keys()) {
+
+			if (k.startsWith(stepKey + ".")) {
+				versionMap.delete(k);
+			}
+		}
+
+		// =========================
+		// clear runtime cache
+		// =========================
+		clearStep(stepKey);
+
+		queue = queue.filter(
+			q => q.stepKey !== stepKey
+		);
+	}
+	function setRuntime(stepKey, field, value) {
+		runtimeState.set(`${stepKey}.${field}`, value); 
+		// 只 bump graph，不寫 store
+		bumpVersion(stepKey, field);
+		scheduleRun(stepKey, field);
+	}
+
+	function getRuntime(stepKey, field) {
+		return runtimeState.get(`${stepKey}.${field}`);
+	}
+
+	function refreshUI(stepKey, field) {
+		bumpVersion(stepKey, field);
+		scheduleRun(stepKey, field);
+	}
+	return {
+		register,
+		notify,
+		batchNotify,
+		clearStep,
+		unregisterStep,
+		setRuntime, refreshUI,
+		has,
+		validateStep
+	};
+
+})();
+
+
+
+
+
+
+
+function makeKey(field, col) {
+	if (!col || col === "undefined" || col === "null") {
+		return field;
+	}
+	return `${field}.${col}`;
+}
+
+function getKey(el) {
+	const rawCol = el.dataset.col;
+	const col = rawCol && rawCol.trim() ? rawCol.trim() : null;
+	return makeKey(el.dataset.field, col);
+}
+
+function resolveFieldType(el) { 
+	if (el.dataset.type)
+		return el.dataset.type.trim().toLowerCase(); 
+	if (el.tagName === "TEXTAREA")
+		return "textarea"; 
+	if (el.tagName === "SELECT") {
+		if (el.multiple)
+			return "select-multiple";
+		return "select-one";
+	} 
+	if (el.tagName === "INPUT") {
+		return (
+			el.getAttribute("type") ||
+			"text"
+		).trim().toLowerCase();
+	} 
+	return "text";
+}
+function findField(stepKey, field) { 
+	const [fieldName, colRef] = field.split('.'); 
+	const finalCol = colRef || (typeof col !== 'undefined' ? col : null);
+
+	const selector = finalCol
+		? `[data-step='${stepKey}'][data-field='${fieldName}'][data-col='${finalCol}']`
+		: `[data-step='${stepKey}'][data-field='${fieldName}']`;
+
+	return document.querySelector(selector);
+}
+function parseRule(ruleStr) {
+
+	if (!ruleStr) {
+		return { validators: [], async: null, mapping: null };
+	}
+
+	const parts = ruleStr.split("|");
+
+	const validators = [];
+	let async = null;
+	let mapping = null;
+
+	for (const p of parts) {
+
+		// =========================
+		// async:/api
+		// =========================
+		if (p.startsWith("async:")) {
+			async = p.replace("async:", "").trim();
+			continue;
+		}
+
+		// =========================
+		// map:a=b,c=d
+		// =========================
+		if (p.startsWith("map:")) {
+
+			mapping = {};
+
+			const raw = p.replace("map:", "").split(",");
+
+			for (const item of raw) {
+
+				const [target, source] = item.split("=");
+
+				if (!target || !source) continue;
+
+				mapping[target.trim()] = source.trim();
+			}
+
+			continue;
+		}
+
+		// =========================
+		// sync validators
+		// =========================
+		validators.push(p);
+	}
+
+	return { validators, async, mapping };
+}
+function registerValidationRules(el, stepKey) {
+	const store = AppBootstrap.get("FlowStore");
+	const rawCol = el.dataset.col;
+	const col = rawCol && rawCol.trim() ? rawCol.trim() : null;
+	const key = makeKey(el.dataset.field, col);
+	const fieldType = resolveFieldType(el);
+	const renderer = el.dataset?.renderer;
+	const parsed = parseRule(el.dataset.rule);
+
+	// =========================
+	// sync validators
+	// =========================
+	parsed.validators.forEach((r, i) => {
+
+		const [name, arg] = r.split(":");
+		const fn = ValidationRules[name];
+		if (!fn) return;
+
+		GraphV2.register({
+			type: "validation",
+			stepKey,
+			deps: [key],
+			target: key,
+			id: `${stepKey}.${key}.${name}.${i}`,
+
+			run: ({ data }) => { 
+				const el = findField(stepKey, key); 
+				let val; 
+				if (el && RuntimeHelpers.isRuntime(el)) { 
+					const adapter = FieldAdapters.resolve(el); 
+					val = adapter.getValue(el);
+				}
+				else { 
+					val = data?.[key];
+				}
+				const validationResult = fn(val, { arg, type: fieldType, renderer: renderer }); 
+				if (el && window.RuntimeHelpers.isRuntime(el)) {
+					setTimeout(() => {
+						if (validationResult && typeof validationResult === "string") { 
+							FieldStatus.set(el, "error", validationResult);
+						} else if (val !== null && val !== undefined && val !== "") {
+							// 
+							FieldStatus.set(el, "success");
+						} else { 
+							FieldStatus.clear(el);
+						}
+					}, 0);
+				} 
+				return validationResult;
+				/*return fn(val, { arg, type: fieldType });*/
+			}
+		});
+	});
+
+	// =========================
+	// async
+	// =========================
+	if (parsed.async) {
+		const nodeId = `${stepKey}.${key}.async`;
+
+		if (GraphV2.has(nodeId)) return;
+		// =========================
+		// 1️⃣ validation node（只做 request）
+		// =========================
+		GraphV2.register({
+			type: "validation",
+			stepKey,
+			deps: [key],
+			target: key,
+			id: `${stepKey}.${key}.async`,
+
+			run: async ({ data, signal }) => {
+				const val = data[key];
+
+				if (isEmpty(val)) {
+
+					// ⭐ 清掉 async cache（很重要）
+					store.safeSet(stepKey, `__async.${key}`, null);
+
+					return true;
+				}
+
+				const result = await ValidationRules.async(val, {
+					url: parsed.async,
+					stepKey,
+					field: key,
+					fields: parsed.mapping,
+					data,
+					signal
+				});
+				if (result?.valid !== false) {
+					store.safeSet(
+						stepKey,
+						`__async.${key}`,
+						result
+					);
+				}
+				// ❌ 這裡只 return，不做 notify
+				return result;
+			}
+		});
+
+		// =========================
+		// 2️⃣ effect node（專門處理 mapping）
+		// =========================
+		if (parsed.mapping) {
+
+			GraphV2.register({
+				type: "effect",
+				stepKey,
+				deps: [key],
+				target: key,
+				id: `${stepKey}.${key}.async.mapping`,
+
+				run: async ({ data, signal }) => {
+
+					const val = data[key];
+
+					// =========================
+					// clear mapping when empty
+					// =========================
+					if (isEmpty(val)) {
+
+						const patch = {};
+
+						for (const targetField of Object.keys(parsed.mapping)) {
+							patch[targetField] = "";
+						}
+
+						return { patch };
+					}
+
+					const result =
+						store.get(
+							stepKey,
+							`__async.${key}`
+						);
+
+					if (!result?.valid || !result?.data)
+						return;
+
+					const patch = {};
+
+					for (const [targetField] of Object.entries(parsed.mapping)) {
+						patch[targetField] =
+							result.data[targetField] ?? "";
+					}
+
+					return { patch };
+				}
+			});
+		}
+	}
+}
+
+
+private static string RenderDropdownAsText(DynamicField f, string stepKey)
+{
+    var current = ViewHelper.ResolveValue(f.ColValue, f.DefaultValue);
+
+    // ⚠️ 直接從 Options 找 text（不需要 API）
+    var text = f.Options?
+        .FirstOrDefault(x => x.Value == current)?
+        .Text ?? current;
+
+    return WrapField($@"
+        <div class='input-with-icon'>
+            <input type='text'
+                   class='form-control'
+                   data-field='{f.ColId}'
+                   data-step='{stepKey}'
+                   data-type='dropdown-text'
+                   value='{text}'
+                   readonly />
+
+            <span class='field-icon'>
+                <i class='bi bi-lock text-muted'></i>
+            </span>
+        </div>
+    ");
+}
+
+private static string RenderControl(DynamicField f, string stepKey, bool isReadOnly)
+{
+    return f.EnumType switch
+    {
+        FieldType.Dropdown or FieldType.Select2 => 
+            isReadOnly ? RenderDropdownAsText(f, stepKey)
+                       : RenderDropdown(f, stepKey),
+
+        _ => RenderNormalControl(f, stepKey)
+    };
+}
+
+
+var control = RenderControl(f, stepKey, f.HasBehavior("readonly"));
+
+
+
+window.FieldBinder = (() => { 
+	function editable(container, stepKey) {
+		bindFields(container, stepKey, "editable");
+	}
+
+	function readOnly(container, stepKey) {
+		bindFields(container, stepKey, "readOnly");
+	}
+	function bindFieldEvents(
+		el,
+		stepKey,
+		container,
+		adapter,
+		store
+	) {
+
+		const update = async (e) => {
+
+			const target =
+				e?.target || el;
+
+			const key =
+				getKey(target);
+
+			store.setTouched(
+				stepKey,
+				key
+			);
+
+			const newValue =
+				adapter.getValue(
+					target,
+					container
+				);
+
+			if (target.type === "file") {
+
+				const result =
+					await window.PreviewModule.importfile({
+						stepKey,
+						key,
+						store,
+						container,
+						target,
+						newValue
+					});
+
+				if (!result) {
+					alert("fail");
+				}
+
+				return;
+			}
+
+			GraphV2.notify(
+				stepKey,
+				key,
+				newValue,
+				{
+					virtual:
+						RuntimeHelpers.getVirtual(target)
+				}
+			);
+		};
+
+		adapter.bind(
+			el,
+			update
+		);
+
+		const blurHandler = () => {
+
+			store.setTouched(
+				stepKey,
+				getKey(el)
+			);
+		};
+
+		el.__blurHandler =
+			blurHandler;
+
+		el.addEventListener(
+			"blur",
+			blurHandler
+		);
+	}
+
+	function bindFieldWatch(
+		el,
+		stepKey,
+		key,
+		store
+	) {
+
+		const stop = Vue.watch(
+
+			() => ({
+				error:
+					store.getError(stepKey, key),
+
+				status:
+					store.getStatus(stepKey, key),
+
+				touched:
+					store.isTouched(stepKey, key),
+
+				submitted:
+					store.isStepSubmitted(stepKey),
+
+				val:
+					store.get(stepKey, key)
+			}),
+
+			(state) => {
+
+				applyValue(
+					el,
+					state.val
+				);
+
+				const ui =
+					resolveFieldState({
+						error:
+							state.error,
+
+						status:
+							state.status,
+
+						touched:
+							state.touched,
+
+						submitted:
+							state.submitted,
+
+						val:
+							state.val,
+
+						required:
+							el.dataset.rule?.includes("required")
+					});
+
+				if (!ui.state) {
+
+					FieldStatus.clear(el);
+					return;
+				}
+
+				FieldStatus.set(el, ui.state, ui.message);
+			},
+
+			{
+				immediate: true
+			}
+		);
+
+		el.__vueStop = stop;
+	}
+	function getInitialValue(el, stepKey, store) {
+
+		let value = store.get(stepKey, getKey(el));
+
+		if (!isEmpty(value)) {
+			return value;
+		}
+
+		if (el.dataset.type === "label" || el.type === "hidden") {
+
+			return el.type === "hidden"
+				? (el.value || null)
+				: (el.dataset.value ?? el.textContent.trim() ?? null);
+		}
+
+		if (el.type === "checkbox") {
+			return el.checked;
+		}
+
+		if (el.type === "radio") {
+			return el.checked ? el.value : null;
+		}
+
+		if (el.tagName === "SELECT") {
+			return el.dataset.value ?? el.value;
+		}
+
+		if (el.type === "file") {
+			return null;
+		}
+
+		return el.dataset.value ?? el.value;
+	}
+	function bindFields(container, stepKey, mode = "editable") {
+
+		const plugins = AppBootstrap.get("FilePlugin");
+		const store = AppBootstrap.get("FlowStore");
+
+		const isReadOnly = mode === "readOnly";
+
+		container.querySelectorAll("[data-field]").forEach(el => {
+
+			if (el.dataset.bound) return;
+			el.dataset.bound = "1";
+
+			const key = getKey(el);
+			const adapter = FieldAdapters.resolve(el);
+
+			const value = getInitialValue(
+					el,
+					stepKey,
+					store
+				);
+
+			// =====================
+			// READONLY
+			// =====================
+
+			if (isReadOnly) {
+
+				if (el.type === "file") {
+					plugins.init(el, {
+						stepKey,
+						key
+					});
+				}
+
+				adapter.setValue(el, value );
+
+				adapter.disable(el, true );
+
+				return;
+			}
+
+			// =====================
+			// EDITABLE
+			// =====================
+
+			registerValidationRules(
+				el,
+				stepKey
+			);
+
+			// runtime
+			if (
+				RuntimeHelpers.getVirtual(el)
+				=== "runtime"
+			) {
+
+				GraphV2.setRuntime(
+					stepKey,
+					key,
+					adapter.getValue(el)
+				);
+
+				return;
+			}
+
+			// file plugin
+			if (el.type === "file") {
+
+				plugins.init(el, {
+					stepKey,
+					key
+				});
+			}
+
+			// init graph
+			if (
+				store.getStatus(stepKey, key)
+				!== "error"
+				&&
+				!isEmpty(value)
+			) {
+
+				GraphV2.notify(
+					stepKey,
+					key,
+					typeof value === "string"
+						? value.trim()
+						: value
+				);
+			}
+
+			// bind
+			bindFieldEvents(
+				el,
+				stepKey,
+				container,
+				adapter,
+				store
+			);
+
+			// validation watch
+			bindFieldWatch(
+				el,
+				stepKey,
+				key,
+				store
+			);
+		});
+	}
+	function resolveFieldState({
+		error,
+		status,
+		touched,
+		submitted,
+		val,
+		required
+	}) {
+
+		const show = touched || submitted;
+
+		const isEmptyval =
+			val === null ||
+			val === undefined ||
+			val === "" ||
+			(Array.isArray(val) && val.length === 0) ||
+			(val instanceof File && !val);
+
+		// required
+		if (show && isEmptyval && required) {
+
+			return {
+				state: "error",
+				message: "必填"
+			};
+		}
+		if (!show && !isEmptyval && isEmpty(error) && !required) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+		// valid
+		if (show && !isEmptyval && isEmpty(error)) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		// untouched empty
+		if (!show && !val) {
+
+			return {
+				state: null,
+				message: ""
+			};
+		}
+
+		// processing
+		if (status === "processing") {
+
+			if (val) {
+
+				return {
+					state: "success",
+					message: ""
+				};
+			}
+
+			if (!val && !required) {
+
+				return {
+					state: null,
+					message: ""
+				};
+			}
+
+			return {
+				state: "processing",
+				message: ""
+			};
+		}
+
+		// error
+		if (status === "error") {
+
+			return {
+				state: "error",
+				message: error || ""
+			};
+		}
+		if (status === "success" && !required) {
+			return {
+				state: null,
+				message: ""
+			};
+		}
+		// success
+		if (status === "success") {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		return {
+			state: null,
+			message: ""
+		};
+	}
+	function setReadonly(stepKey,field,readonly) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return;
+
+		const type = (el.type || "").toLowerCase();
+
+		if (
+			el.tagName === "SELECT" ||
+			type === "checkbox" ||
+			type === "radio"
+		) {
+
+			el.disabled = readonly;
+
+		} else {
+
+			el.readOnly = readonly;
+		}
+
+		el.classList.toggle(
+			"readonly",
+			readonly
+		);
+	}
+
+	function setSpecailRadio(stepKey, field, targetValue) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return; 
+		const type = (el.type || el.dataset.type || "").toLowerCase();
+		const radios = el.querySelectorAll('input[type="' + type +'"]'); 
+	 
+		let targetRadio = null;
+		let otherRadios = [];
+		 
+		for (let i = 0; i < radios.length; i++) {
+			const radio = radios[i];
+			if (String(radio.value) === String(targetValue)) {
+				targetRadio = radio;
+			} else {
+				otherRadios.push(radio);
+			}
+		}
+
+		 
+		if (targetRadio) {
+			targetRadio.checked = false;
+			targetRadio.disabled = true;
+			targetRadio.removeAttribute('checked');
+			targetRadio.style.pointerEvents = 'none';
+			if (targetRadio.parentElement) {
+				targetRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+
+		 
+		for (let j = 0; j < otherRadios.length; j++) {
+			const otherRadio = otherRadios[j];
+			otherRadio.checked = true;
+			otherRadio.disabled = true; // 鎖死
+			otherRadio.setAttribute('checked', 'checked');
+			otherRadio.style.pointerEvents = 'none';
+			if (otherRadio.parentElement) {
+				otherRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+	}
+	function bindLookupModal(stepKey, field, options) {
+
+		const input = findField(stepKey, field);
+		if (!input) return;
+
+		input.readOnly = true;
+		input.classList.add("lookup-input");
+
+		// 防重複綁定
+		if (input._lookupHandler) {
+			input.removeEventListener("click", input._lookupHandler);
+		}
+
+		input._lookupHandler = () => {
+
+			const checkbox =
+				document.querySelector(`#ctrl_${field} input[type='checkbox']`);
+
+			if (checkbox?.checked) return;
+
+			LookupEngineV7.open({
+				url: options.modalUrl,
+				modalId: options.modalId,
+
+				stepKey,
+				mapping: options.mapping
+			});
+		};
+
+		input.addEventListener("click", input._lookupHandler);
+	}
+	function bindReadonlyGroup(stepKey, field,
+		targets,
+		labelText = "") {
+		const container = document.getElementById('ctrl_' + field);
+
+		if (!container)
+			return;
+
+		const wrapper = document.createElement("div");
+		wrapper.className = "form-check mb-0";
+
+		const checkbox = document.createElement("input");
+		checkbox.type = "checkbox";
+		checkbox.className = "form-check-input";
+		checkbox.id = `chk_${field}`;
+
+		const label = document.createElement("label");
+		label.className = "form-check-label";
+		label.htmlFor = checkbox.id;
+		label.textContent = labelText;
+
+		const applyState = (checked) => {
+
+			targets.forEach(t => {
+
+				//const field = document.querySelector(
+				//	`[data-field='${t.field}']`
+				//);
+				const field = findField(stepKey, t.field)
+				if (!field)
+					return;
+
+				if (checked) {
+
+					field.value = t.value ?? "";
+					field.readOnly = true;
+
+
+				} else {
+
+					field.value = "";
+					field.readOnly = false;
+				}
+				GraphV2.notify(stepKey, t.field, field.value);
+				field.dispatchEvent(
+					new Event("change", { bubbles: true })
+				);
+			});
+		};
+
+		checkbox.addEventListener("change", () => {
+			applyState(checkbox.checked);
+		});
+
+		wrapper.appendChild(checkbox);
+
+		if (labelText)
+			wrapper.appendChild(label);
+
+		container.appendChild(wrapper);
+
+		return checkbox; 
+	} 
+	function refreshUI(stepKey, field, value) { 
+		const el = findField(stepKey, field); 
+		if (!el) return; 
+		applyValue(el, value);
+	}
+	function applyValue(el, value) {
+		const adapter = FieldAdapters.resolve(el); 
+		adapter.setValue(el, value);
+	}
+	function unbindAll(container) { 
+		container
+			.querySelectorAll("[data-field]")
+			.forEach(el => { 
+				const adapter = FieldAdapters.resolve(el); 
+				adapter.destroy(el);  
+				delete el.dataset.bound;
+			});
+	}
+	function setOptions(stepKey, key, list) { 
+		const store = AppBootstrap.get("FlowStore"); 
+		const el = findField(stepKey, key);
+		if (!el)
+			return;
+
+		if (el.tagName === "SELECT") { 
+			let optionsHtml = '<option value="">-- 請選擇 --</option>'; 
+			let dataList = list;
+			if (typeof list === "string") {
+				try {
+					dataList = JSON.parse(list);
+				} catch (e) {
+					console.error("解析 JSON 失敗", e);
+					return;
+				}
+			}
+
+			if (Array.isArray(dataList)) {
+				dataList.forEach(item => {
+					const val = item.value;
+					const txt = item.text;
+					optionsHtml += `<option value="${val}">${txt}</option>`;
+				});
+			} 
+			el.innerHTML = optionsHtml; 
+			let val = store.get(stepKey, key) || el.dataset.value;
+			GraphV2.notify(stepKey, key, val);
+		} 
+	}
+	return {
+		editable,
+		readOnly, bindLookupModal,bindFields, setReadonly, setOptions, refreshUI, unbindAll, setSpecailRadio, bindReadonlyGroup };
+
+})();
+
+
+
+
+
+
+
+
+
+
+
+
+
+const LookupEngineV7 = (() => {
+
+	const state = {
+		containerId: "modalContainer"
+	};
+	function resolveLookup(modalEl) {
+		return modalEl.__lookup || null;
+	}
+	async function open(options) {
+
+		state.stepKey = options.stepKey;
+		state.mapping = options.mapping;
+
+		const html = await $.ajax({
+			url: options.url,
+			type: "GET"
+		});
+
+		$("#modalContainer").html(html);
+
+		const modalEl = document.getElementById(options.modalId);
+
+		const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+		const lookup = resolveLookup(modalEl);
+
+		// =========================
+		// init
+		// =========================
+		modalEl.addEventListener("shown.bs.modal", () => {
+			lookup?.init?.(modalEl);
+		}, { once: true });
+
+		// =========================
+		// submit
+		// =========================
+		modalEl.addEventListener("click", (e) => {
+
+			if (e.target.id !== "btnSubmit") return;
+
+			const data = lookup?.getData?.(modalEl);
+
+			if (!data) {
+				alert("請先選擇資料");
+				return;
+			}
+
+			const store = window.AppBootstrap.get("FlowStore");
+
+			state.mapping.forEach(([field, key]) => {
+
+				window.GraphV2.notify(state.stepKey, field, data[key]);
+				store.setTouched(state.stepKey, field);
+			});
+
+			modal.hide();
+		});
+
+		// =========================
+		// destroy
+		// =========================
+		modalEl.addEventListener("hidden.bs.modal", () => {
+			lookup?.destroy?.(modalEl);
+			$("#modalContainer").empty();
+		});
+
+		modal.show();
+	}
+
+	return { open };
+
+})();
+function parseDate(input) {
+
+	if (input == null || input === "")
+		return null; 
+	if (input instanceof Date)
+		return isNaN(input.getTime()) ? null : input;
+
+	let str = String(input).trim();
+	 
+	if (/^\d{8}$/.test(str)) {
+
+		str = `${str.slice(0, 4)}-${str.slice(4, 6)}-${str.slice(6, 8)}`;
+	}
+	 
+	if (/^\d{4}\/\d{2}\/\d{2}$/.test(str)) {
+
+		str = str.replace(/\//g, "-");
+	} 
+
+	const d = new Date(str);
+
+	if (isNaN(d.getTime()))
+		return null;
+
+	return d;
+}
+
+window.ValidationRules = {
+
+	required: (val, ctx) => {
+
+		const type = ctx.type.toLowerCase() || "text"; 
+		if (val instanceof File)
+			return val ? true : "必填";
+
+		if (Array.isArray(val))
+			return val.length > 0 || "必填";
+
+		return (val === null || val === undefined || val === "")
+			? "必填"
+			: true;
+	},
+
+	min: (val, ctx) => {
+
+		if (val == null || val === "")
+			return true;
+
+		const type = ctx.type || "text";
+
+		switch (type) { 
+			case "virtual":
+				if (ctx.renderer == 'fileBadge') {
+					return parseFloat(val) >= parseFloat(ctx.arg)
+						|| `必需上傳${ctx.arg}檔案以上`; 
+				} 
+			case "number":
+				return parseFloat(val) >= parseFloat(ctx.arg)
+					|| `不可小於 ${ctx.arg}`; 
+			case "date":
+			case "time":
+				return parseDate(val) >= parseDate(ctx.arg)
+					|| `不可小於 ${ctx.arg}`; 
+			default:
+				return String(val).length >= parseInt(ctx.arg)
+					|| `至少 ${ctx.arg} 個字`;
+		}
+	},
+
+	max: (val, ctx) => {
+
+		if (val == null || val === "")
+			return true;
+
+		const type = ctx.type || "text";
+
+		switch (type) { 
+			case "number":
+				return parseFloat(val) <= parseFloat(ctx.arg)
+					|| `不可大於 ${ctx.arg}`; 
+			case "date":
+				return parseDate(val) <= parseDate(ctx.arg)
+					|| `不可大於 ${ctx.arg}`; 
+			default: 
+				return String(val).length <= parseInt(ctx.arg)
+					|| `不可超過 ${ctx.arg} 個字`;
+		}
+	}, 
+	accept: (file, ctx) => {
+
+		if (!file) return true;
+
+		const rules = ctx.arg
+			.split(",")
+			.map(x => x.trim().toLowerCase());
+
+		const fileName = file.name.toLowerCase();
+
+		const mime = (file.type || "").toLowerCase();
+
+		const valid = rules.some(rule => {
+
+			// 副檔名
+			if (rule.startsWith(".")) {
+				return fileName.endsWith(rule);
+			}
+
+			// mime
+			return mime.includes(rule);
+		});
+
+		return valid || `檔案格式需為 ${ctx.arg}`;
+	},
+
+	maxsize: (file, ctx) => {
+		if (!file) return true;
+
+		const maxMB = parseFloat(ctx.arg);
+		return file.size <= maxMB * 1024 * 1024
+			|| `檔案不可超過 ${maxMB}MB`;
+	},
+	// =========================
+	// 🔥 async validator（統一版本）
+	// =========================
+	// =========================
+	// 🔥 async validator（升級版）
+	// =========================
+	async: async (val, ctx) => {
+
+		if (val === undefined) return;
+
+		let res;
+
+		// =========================
+		// ⭐ FILE MODE
+		// =========================
+		if (val instanceof File) {
+
+			const formData = new FormData();
+			formData.append("file", val);
+
+			res = await fetch(ctx.url, {
+				method: "POST",
+				body: formData,
+				signal: ctx.signal
+			});
+
+		}
+		// =========================
+		// ⭐ MULTIPLE FILE
+		// =========================
+		else if (Array.isArray(val) && val[0] instanceof File) {
+
+			const formData = new FormData();
+
+			val.forEach((f, i) => {
+				formData.append(`files[${i}]`, f);
+			});
+
+			res = await fetch(ctx.url, {
+				method: "POST",
+				body: formData,
+				signal: ctx.signal
+			});
+		}
+		// =========================
+		// ⭐ NORMAL VALUE（原本邏輯）
+		// =========================
+		else {
+
+			res = await fetch(`${window.AppBasePath}${ctx.url}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					value: val,
+					stepKey: ctx.stepKey,
+					field: ctx.field,
+					fields: ctx.fields,
+					data: ctx.data
+				}),
+				signal: ctx.signal
+			});
+		}
+
+		const data = await res.json();
+
+		if (data.valid === false) {
+			return data.message || "驗證失敗";
+		}
+
+		return {
+			valid: true,
+			data: data.data || {},
+			message: data.message || ""
+		};
+	}
+};
+ 
+// =========================
+// Runtime Helpers
+// =========================
+window.RuntimeHelpers = (() => {
+
+	function getVirtual(el) {
+		return (
+			el.dataset.type =='virtual'
+				? "runtime"
+				: "store"
+		).toLowerCase();
+	}
+
+	function isRuntime(el) {
+		return getVirtual(el) === "runtime";
+	}
+
+	function getDisplay(el) {
+		return el.querySelector(".file-cnt-display")
+	}
+
+	function parseDisplayValue(el) {
+
+		const display = getDisplay(el);
+
+		const raw =
+			display?.textContent?.trim();
+
+		if (raw === "" || raw == null)
+			return null;
+
+		// number
+		if (/^-?\d+(\.\d+)?$/.test(raw)) {
+			return Number(raw);
+		}
+
+		// date
+		const d = parseDate(raw);
+
+		if (d)
+			return d;
+
+		return raw;
+	}
+
+	function setDisplayValue(el, value) {
+
+		const display = getDisplay(el);
+
+		if (!display)
+			return;
+
+		display.textContent =
+			value ?? "";
+	}
+
+	return {
+		getVirtual,
+		isRuntime,
+		getDisplay,
+		parseDisplayValue,
+		setDisplayValue
+	};
+
+})(); 
+window.FieldAdapters = (() => {
+
+	function triggerSelect2(el) {
+
+		if (
+			window.jQuery &&
+			jQuery(el).data("select2")
+		) {
+			jQuery(el).trigger("change");
+		}
+	}
+
+	// =========================
+	// helpers
+	// =========================
+	function same(el, value) {
+
+		return el.value === String(value ?? "");
+	}
+
+	function safeSet(el, next) {
+
+		if (same(el, next)) return;
+
+		el.value = next;
+	}
+
+	function defaultFocus(el) {
+		el.focus();
+	}
+
+	function defaultValidate() {
+		return true;
+	}
+
+	function defaultDestroy(el) {
+
+		if (el.__handler) {
+
+			el.removeEventListener(
+				el.__eventType || "input",
+				el.__handler
+			);
+
+			delete el.__handler;
+		}
+		// blur
+		if (el.__blurHandler) {
+
+			el.removeEventListener(
+				"blur",
+				el.__blurHandler
+			);
+
+			delete el.__blurHandler;
+		}
+		if (el.__vueStop) {
+			el.__vueStop();
+			delete el.__vueStop;
+		}
+		if (
+			window.jQuery &&
+			jQuery(el).data("select2")
+		) {
+
+			jQuery(el).off(
+				el.__eventType,
+				el.__handler
+			);
+			jQuery(el).select2("destroy");
+
+		}
+	}
+
+	function defaultDisable(el, disabled) {
+		// =========================
+		// FILE
+		// =========================
+		if (el.type === "file") {
+
+			el.disabled = disabled;
+
+			const wrapper = el.closest(".file-wrapper");
+
+			if (wrapper) {
+
+				// 1️⃣ actions（預覽/刪除）
+				const actions = wrapper.querySelector(".file-actions");
+				if (actions) {
+					actions.classList.toggle("d-none", disabled);
+				}
+
+				// 2️⃣ upload button（🔥直接隱藏）
+				const label = wrapper.querySelector(".file-picker-btn");
+				if (label) {
+					label.classList.toggle("d-none", disabled);
+				}
+
+				// 3️⃣ file line
+				const line = wrapper.querySelector(".file-line");
+				if (line) {
+					line.classList.toggle("text-muted", disabled);
+				}
+
+				// 4️⃣ wrapper state
+				wrapper.classList.toggle("is-disabled", disabled);
+			}
+
+			el.classList.toggle("readonly", disabled);
+			return;
+		}
+		if (el.tagName === "BUTTON") {
+			el.disabled = disabled;
+
+			el.classList.toggle("readonly", disabled);
+			return;
+		}
+		if (
+			el.tagName === "SELECT" ||
+			el.type === "checkbox" ||
+			el.type === "radio"
+		) {
+			el.disabled = disabled;
+		}
+		else {
+			el.readOnly = disabled;
+		}
+
+		el.classList.toggle(
+			"readonly",
+			disabled
+		);
+	}
+
+	function defaultClear(el) {
+
+		if ("value" in el) el.value = "";
+
+		if ("checked" in el) el.checked = false;
+	}
+
+	// =========================
+	// adapters
+	// =========================
+	const adapters = { 
+		virtual: {
+
+			getValue(el) {
+
+				return RuntimeHelpers.parseDisplayValue(el);
+			},
+
+			setValue(el, value) {
+
+				RuntimeHelpers.setDisplayValue(el, value);
+			},
+
+			bind(el, update) {
+
+				// runtime display
+				// 不綁 input event
+
+				el.__handler = update;
+			},
+
+			clear(el) {
+
+				RuntimeHelpers.setDisplayValue(el, "");
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+		// =========================
+		// text
+		// =========================
+		text: {
+
+			getValue(el) {
+				return el.value;
+			},
+
+			setValue(el, value) {
+
+				const next =
+					value == null
+						? ""
+						: String(value);
+
+				safeSet(el, next);
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "input";
+
+				el.addEventListener(
+					"input",
+					update
+				);
+			},
+
+			clear(el) {
+				el.value = "";
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// number
+		// =========================
+		number: {
+
+			getValue(el) {
+
+				return el.value === ""
+					? null
+					: Number(el.value);
+			},
+
+			setValue(el, value) {
+
+				const next =
+					value == null
+						? ""
+						: String(value);
+
+				safeSet(el, next);
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "input";
+
+				el.addEventListener(
+					"input",
+					update
+				);
+			},
+
+			clear(el) {
+				el.value = "";
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// checkbox
+		// =========================
+		checkbox: {
+
+			getValue(el) {
+				return el.checked;
+			},
+
+			setValue(el, value) {
+
+				const checked =
+					!!value;
+
+				if (el.checked === checked) {
+					return;
+				}
+
+				el.checked = checked;
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "change";
+
+				el.addEventListener(
+					"change",
+					update
+				);
+			},
+
+			clear(el) {
+				el.checked = false;
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// radio
+		// =========================
+		radio: {
+
+			getValue(el, container) {
+
+				const field =
+					el.dataset.field;
+
+				const col =
+					el.dataset.col;
+
+				const selector = col
+					? `input[data-field='${field}'][data-col='${col}']:checked`
+					: `input[data-field='${field}']:checked`;
+
+				const checked =
+					container.querySelector(selector);
+
+				return checked
+					? checked.value
+					: null;
+			},
+
+			setValue(el, value) {
+
+				const checked =
+					String(el.value) ===
+					String(value);
+
+				if (el.checked === checked) {
+					return;
+				}
+
+				el.checked = checked;
+			},
+
+			bind(el, update) {
+
+				el.__handler = update;
+				el.__eventType = "change";
+
+				el.addEventListener(
+					"change",
+					update
+				);
+			},
+
+			clear(el) {
+				el.checked = false;
+			},
+
+			focus: defaultFocus,
+
+			disable: defaultDisable,
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// file
+		// =========================
+		file: {
+
+			getValue(el) {
+
+				return el.files?.length
+					? (el.multiple
+						? Array.from(el.files)
+						: el.files[0])
+					: null;
+			},
+
+			setValue(el, value) {
+
+				const wrapper = el.closest(".file-wrapper");
+				if (!wrapper) return;
+
+				const nameEl = wrapper.querySelector(".file-name");
+				const actionsEl = wrapper.querySelector(".file-actions");
+				const lineEl = wrapper.querySelector(".file-line");
+
+				// =====================================================
+				// ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
+				// 🔥 KEY FIX：readonly / empty value 保護
+				// ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
+				if (value == null || value === "") {
+
+					// ❗不要清 UI（readonly 會進這裡）
+					return;
+				}
+
+				// =========================
+				// parse file name
+				// =========================
+				const fileName =
+					value instanceof File
+						? value.name
+						: Array.isArray(value)
+							? value.map(x =>
+								x instanceof File
+									? x.name
+									: (x?.name ?? String(x))
+							).join(", ")
+							: value && typeof value === "object"
+								? value.name
+								: typeof value === "string"
+									? value
+									: "";
+
+				const hasFile = !!fileName;
+
+				// =========================
+				// show filename
+				// =========================
+				if (nameEl) {
+					nameEl.textContent = fileName;
+					nameEl.classList.toggle("d-none", !hasFile);
+				}
+
+				// =========================
+				// tooltip sync
+				// =========================
+				if (lineEl) {
+					lineEl.dataset.title = fileName;
+				}
+
+				// =========================
+				// actions
+				// =========================
+				if (actionsEl) {
+					actionsEl.classList.toggle("d-none", !hasFile);
+				}
+			},
+
+			bind(el, update) {
+				el.addEventListener("change", update);
+			},
+
+			clear(el) {
+
+				el.value = "";
+
+				const wrapper = el.closest(".file-wrapper");
+				if (!wrapper) return;
+
+				wrapper.querySelector(".file-name")
+					?.classList.add("d-none");
+
+				wrapper.querySelector(".file-actions")
+					?.classList.add("d-none");
+
+				wrapper.querySelector(".file-name").textContent = "";
+
+				wrapper.querySelector(".file-line")
+					?.setAttribute("data-title", "");
+			},
+
+			focus: defaultFocus,
+			disable: defaultDisable,
+			validate: defaultValidate,
+			destroy: defaultDestroy
+		},
+
+		// =========================
+		// select
+		// =========================
+		select: {
+
+			getValue(el) {
+
+				if (el.classList.contains("dropdownColor")) {
+
+					const color =
+						el.selectedOptions[0]
+							?.dataset.color;
+
+					el.style.backgroundColor = color || "";
+				}
+
+				return el.value;
+			},
+
+			setValue(el, value) {
+
+				const next =
+					value == null
+						? ""
+						: String(value);
+
+				if (el.value === next) {
+					if (el.classList.contains("dropdownColor")) {
+						const color =
+							el.selectedOptions[0]
+								?.dataset.color;
+						el.style.backgroundColor = color || "";
+					}
+					return;
+				}
+
+				el.value = next;
+
+				if (el.classList.contains("dropdownColor")) { 
+					const color =
+						el.selectedOptions[0]
+							?.dataset.color; 
+					el.style.backgroundColor = color || "";
+				}
+
+				triggerSelect2(el);
+			},
+
+			bind(el, update) {
+
+				const $el = $(el);
+
+				el.__handler = update;
+				el.__eventType = "change";
+
+				if ($el.data("select2")) {
+
+					const handler = () => update({ target: el });
+
+					el.__handler = handler;
+					el.__eventType =
+						"select2:select select2:clear change";
+
+					$el.on(el.__eventType, handler);
+
+					return;
+				}
+
+				el.addEventListener(
+					"change",
+					update
+				);
+			},
+
+			clear(el) {
+
+				el.value = "";
+				triggerSelect2(el);
+			},
+
+			focus: defaultFocus,
+
+			disable(el, disabled) {
+				const $el = $(el);
+
+				// ✔ 只做這件事（核心）
+				$el.prop("disabled", disabled);
+
+				// ✔ select2 同步（可有可無，但建議留）
+				if ($el.data("select2")) {
+					$el.trigger("change.select2");
+				}
+				//el.disabled = disabled;
+				//triggerSelect2(el);
+			},
+
+			validate: defaultValidate,
+
+			destroy: defaultDestroy
+		}
+	};
+
+	// =========================
+	// resolver
+	// =========================
+	function resolve(el) { 
+		const type = (el.dataset.type || "").toLowerCase();
+
+		if (type === "virtual" || window.RuntimeHelpers.isRuntime(el)) {
+			return adapters.virtual;
+		}
+		if (el.type === "checkbox") return adapters.checkbox;
+		if (el.type === "radio") return adapters.radio;
+		if (el.type === "file") return adapters.file;
+		if (el.type === "number") return adapters.number;
+		if (el.tagName === "SELECT") return adapters.select;
+
+		return adapters.text;
+	}
+
+	return {
+		resolve
+	};
+
+})();
+// =========================
+// ✅ FieldBinder（初始化✔ + UX 正確）
+// =========================
+window.FieldBinder = (() => { 
+	function editable(container, stepKey) {
+		bindFields(container, stepKey, "editable");
+	}
+
+	function readOnly(container, stepKey) {
+		bindFields(container, stepKey, "readOnly");
+	}
+	function bindFieldEvents(
+		el,
+		stepKey,
+		container,
+		adapter,
+		store
+	) {
+
+		const update = async (e) => {
+
+			const target =
+				e?.target || el;
+
+			const key =
+				getKey(target);
+
+			store.setTouched(
+				stepKey,
+				key
+			);
+
+			const newValue =
+				adapter.getValue(
+					target,
+					container
+				);
+
+			if (target.type === "file") {
+
+				const result =
+					await window.PreviewModule.importfile({
+						stepKey,
+						key,
+						store,
+						container,
+						target,
+						newValue
+					});
+
+				if (!result) {
+					alert("fail");
+				}
+
+				return;
+			}
+
+			GraphV2.notify(
+				stepKey,
+				key,
+				newValue,
+				{
+					virtual:
+						RuntimeHelpers.getVirtual(target)
+				}
+			);
+		};
+
+		adapter.bind(
+			el,
+			update
+		);
+
+		const blurHandler = () => {
+
+			store.setTouched(
+				stepKey,
+				getKey(el)
+			);
+		};
+
+		el.__blurHandler =
+			blurHandler;
+
+		el.addEventListener(
+			"blur",
+			blurHandler
+		);
+	}
+
+	function bindFieldWatch(
+		el,
+		stepKey,
+		key,
+		store
+	) {
+
+		const stop = Vue.watch(
+
+			() => ({
+				error:
+					store.getError(stepKey, key),
+
+				status:
+					store.getStatus(stepKey, key),
+
+				touched:
+					store.isTouched(stepKey, key),
+
+				submitted:
+					store.isStepSubmitted(stepKey),
+
+				val:
+					store.get(stepKey, key)
+			}),
+
+			(state) => {
+
+				applyValue(
+					el,
+					state.val
+				);
+
+				const ui =
+					resolveFieldState({
+						error:
+							state.error,
+
+						status:
+							state.status,
+
+						touched:
+							state.touched,
+
+						submitted:
+							state.submitted,
+
+						val:
+							state.val,
+
+						required:
+							el.dataset.rule?.includes("required")
+					});
+
+				if (!ui.state) {
+
+					FieldStatus.clear(el);
+					return;
+				}
+
+				FieldStatus.set(el, ui.state, ui.message);
+			},
+
+			{
+				immediate: true
+			}
+		);
+
+		el.__vueStop = stop;
+	}
+	function getInitialValue(el, stepKey, store) {
+
+		let value = store.get(stepKey, getKey(el));
+
+		if (!isEmpty(value)) {
+			return value;
+		}
+
+		if (el.dataset.type === "label" || el.type === "hidden") {
+
+			return el.type === "hidden"
+				? (el.value || null)
+				: (el.dataset.value ?? el.textContent.trim() ?? null);
+		}
+
+		if (el.type === "checkbox") {
+			return el.checked;
+		}
+
+		if (el.type === "radio") {
+			return el.checked ? el.value : null;
+		}
+
+		if (el.tagName === "SELECT") {
+			return el.dataset.value ?? el.value;
+		}
+
+		if (el.type === "file") {
+			return null;
+		}
+
+		return el.dataset.value ?? el.value;
+	}
+	function bindFields(container, stepKey, mode = "editable") {
+
+		const plugins = AppBootstrap.get("FilePlugin");
+		const store = AppBootstrap.get("FlowStore");
+
+		const isReadOnly = mode === "readOnly";
+
+		container.querySelectorAll("[data-field]").forEach(el => {
+
+			if (el.dataset.bound) return;
+			el.dataset.bound = "1";
+
+			const key = getKey(el);
+			const adapter = FieldAdapters.resolve(el);
+
+			const value = getInitialValue(
+					el,
+					stepKey,
+					store
+				);
+
+			// =====================
+			// READONLY
+			// =====================
+
+			if (isReadOnly) {
+
+				if (el.type === "file") {
+					plugins.init(el, {
+						stepKey,
+						key
+					});
+				}
+
+				adapter.setValue(el, value );
+
+				adapter.disable(el, true );
+
+				return;
+			}
+
+			// =====================
+			// EDITABLE
+			// =====================
+
+			registerValidationRules(
+				el,
+				stepKey
+			);
+
+			// runtime
+			if (
+				RuntimeHelpers.getVirtual(el)
+				=== "runtime"
+			) {
+
+				GraphV2.setRuntime(
+					stepKey,
+					key,
+					adapter.getValue(el)
+				);
+
+				return;
+			}
+
+			// file plugin
+			if (el.type === "file") {
+
+				plugins.init(el, {
+					stepKey,
+					key
+				});
+			}
+
+			// init graph
+			if (
+				store.getStatus(stepKey, key)
+				!== "error"
+				&&
+				!isEmpty(value)
+			) {
+
+				GraphV2.notify(
+					stepKey,
+					key,
+					typeof value === "string"
+						? value.trim()
+						: value
+				);
+			}
+
+			// bind
+			bindFieldEvents(
+				el,
+				stepKey,
+				container,
+				adapter,
+				store
+			);
+
+			// validation watch
+			bindFieldWatch(
+				el,
+				stepKey,
+				key,
+				store
+			);
+		});
+	}
+	function resolveFieldState({
+		error,
+		status,
+		touched,
+		submitted,
+		val,
+		required
+	}) {
+
+		const show = touched || submitted;
+
+		const isEmptyval =
+			val === null ||
+			val === undefined ||
+			val === "" ||
+			(Array.isArray(val) && val.length === 0) ||
+			(val instanceof File && !val);
+
+		// required
+		if (show && isEmptyval && required) {
+
+			return {
+				state: "error",
+				message: "必填"
+			};
+		}
+		if (!show && !isEmptyval && isEmpty(error) && !required) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+		// valid
+		if (show && !isEmptyval && isEmpty(error)) {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		// untouched empty
+		if (!show && !val) {
+
+			return {
+				state: null,
+				message: ""
+			};
+		}
+
+		// processing
+		if (status === "processing") {
+
+			if (val) {
+
+				return {
+					state: "success",
+					message: ""
+				};
+			}
+
+			if (!val && !required) {
+
+				return {
+					state: null,
+					message: ""
+				};
+			}
+
+			return {
+				state: "processing",
+				message: ""
+			};
+		}
+
+		// error
+		if (status === "error") {
+
+			return {
+				state: "error",
+				message: error || ""
+			};
+		}
+		if (status === "success" && !required) {
+			return {
+				state: null,
+				message: ""
+			};
+		}
+		// success
+		if (status === "success") {
+
+			return {
+				state: "success",
+				message: ""
+			};
+		}
+
+		return {
+			state: null,
+			message: ""
+		};
+	}
+	function setReadonly(stepKey,field,readonly) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return;
+
+		const type = (el.type || "").toLowerCase();
+
+		if (
+			el.tagName === "SELECT" ||
+			type === "checkbox" ||
+			type === "radio"
+		) {
+
+			el.disabled = readonly;
+
+		} else {
+
+			el.readOnly = readonly;
+		}
+
+		el.classList.toggle(
+			"readonly",
+			readonly
+		);
+	}
+
+	function setSpecailRadio(stepKey, field, targetValue) {
+		const el = findField(stepKey, field);
+
+		if (!el)
+			return; 
+		const type = (el.type || el.dataset.type || "").toLowerCase();
+		const radios = el.querySelectorAll('input[type="' + type +'"]'); 
+	 
+		let targetRadio = null;
+		let otherRadios = [];
+		 
+		for (let i = 0; i < radios.length; i++) {
+			const radio = radios[i];
+			if (String(radio.value) === String(targetValue)) {
+				targetRadio = radio;
+			} else {
+				otherRadios.push(radio);
+			}
+		}
+
+		 
+		if (targetRadio) {
+			targetRadio.checked = false;
+			targetRadio.disabled = true;
+			targetRadio.removeAttribute('checked');
+			targetRadio.style.pointerEvents = 'none';
+			if (targetRadio.parentElement) {
+				targetRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+
+		 
+		for (let j = 0; j < otherRadios.length; j++) {
+			const otherRadio = otherRadios[j];
+			otherRadio.checked = true;
+			otherRadio.disabled = true; // 鎖死
+			otherRadio.setAttribute('checked', 'checked');
+			otherRadio.style.pointerEvents = 'none';
+			if (otherRadio.parentElement) {
+				otherRadio.parentElement.style.pointerEvents = 'none';
+			}
+		}
+	}
+	function bindLookupModal(stepKey, field, options) {
+
+		const input = findField(stepKey, field);
+		if (!input) return;
+
+		input.readOnly = true;
+		input.classList.add("lookup-input");
+
+		// 防重複綁定
+		if (input._lookupHandler) {
+			input.removeEventListener("click", input._lookupHandler);
+		}
+
+		input._lookupHandler = () => {
+
+			const checkbox =
+				document.querySelector(`#ctrl_${field} input[type='checkbox']`);
+
+			if (checkbox?.checked) return;
+
+			LookupEngineV7.open({
+				url: options.modalUrl,
+				modalId: options.modalId,
+
+				stepKey,
+				mapping: options.mapping
+			});
+		};
+
+		input.addEventListener("click", input._lookupHandler);
+	}
+	function bindReadonlyGroup(stepKey, field,
+		targets,
+		labelText = "") {
+		const container = document.getElementById('ctrl_' + field);
+
+		if (!container)
+			return;
+
+		const wrapper = document.createElement("div");
+		wrapper.className = "form-check mb-0";
+
+		const checkbox = document.createElement("input");
+		checkbox.type = "checkbox";
+		checkbox.className = "form-check-input";
+		checkbox.id = `chk_${field}`;
+
+		const label = document.createElement("label");
+		label.className = "form-check-label";
+		label.htmlFor = checkbox.id;
+		label.textContent = labelText;
+
+		const applyState = (checked) => {
+
+			targets.forEach(t => {
+
+				//const field = document.querySelector(
+				//	`[data-field='${t.field}']`
+				//);
+				const field = findField(stepKey, t.field)
+				if (!field)
+					return;
+
+				if (checked) {
+
+					field.value = t.value ?? "";
+					field.readOnly = true;
+
+
+				} else {
+
+					field.value = "";
+					field.readOnly = false;
+				}
+				GraphV2.notify(stepKey, t.field, field.value);
+				field.dispatchEvent(
+					new Event("change", { bubbles: true })
+				);
+			});
+		};
+
+		checkbox.addEventListener("change", () => {
+			applyState(checkbox.checked);
+		});
+
+		wrapper.appendChild(checkbox);
+
+		if (labelText)
+			wrapper.appendChild(label);
+
+		container.appendChild(wrapper);
+
+		return checkbox; 
+	} 
+	function refreshUI(stepKey, field, value) { 
+		const el = findField(stepKey, field); 
+		if (!el) return; 
+		applyValue(el, value);
+	}
+	function applyValue(el, value) {
+		const adapter = FieldAdapters.resolve(el); 
+		adapter.setValue(el, value);
+	}
+	function unbindAll(container) { 
+		container
+			.querySelectorAll("[data-field]")
+			.forEach(el => { 
+				const adapter = FieldAdapters.resolve(el); 
+				adapter.destroy(el);  
+				delete el.dataset.bound;
+			});
+	}
+	function setOptions(stepKey, key, list) { 
+		const store = AppBootstrap.get("FlowStore"); 
+		const el = findField(stepKey, key);
+		if (!el)
+			return;
+
+		if (el.tagName === "SELECT") { 
+			let optionsHtml = '<option value="">-- 請選擇 --</option>'; 
+			let dataList = list;
+			if (typeof list === "string") {
+				try {
+					dataList = JSON.parse(list);
+				} catch (e) {
+					console.error("解析 JSON 失敗", e);
+					return;
+				}
+			}
+
+			if (Array.isArray(dataList)) {
+				dataList.forEach(item => {
+					const val = item.value;
+					const txt = item.text;
+					optionsHtml += `<option value="${val}">${txt}</option>`;
+				});
+			} 
+			el.innerHTML = optionsHtml; 
+			let val = store.get(stepKey, key) || el.dataset.value;
+			GraphV2.notify(stepKey, key, val);
+		} 
+	}
+	return {
+		editable,
+		readOnly, bindLookupModal,bindFields, setReadonly, setOptions, refreshUI, unbindAll, setSpecailRadio, bindReadonlyGroup };
+
+})();
+
+window.FieldStatus = (() => {
+
+	const icons = {
+		success: '<i class="bi bi-check-circle text-success"></i>',
+		error: '<i class="bi bi-x-circle text-danger"></i>',
+		processing: '<i class="bi bi-arrow-repeat rotate text-primary"></i>'
+	};
+
+	// =========================
+	// Renderer Registry
+	// =========================
+	const renderers = {};
+
+	// =========================
+	// helper
+	// =========================
+	function resolveRenderer(el) {
+
+		const name = el.dataset.renderer;
+
+		if (name && renderers[name]) {
+			return renderers[name];
+		}
+
+		return renderers.default;
+	}
+
+	// =========================
+	// default renderer
+	// =========================
+	renderers.default = {
+
+		set(field, el, state, msg) {
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const msgEl =
+				field.querySelector(".field-msg");
+
+			if (msgEl) {
+				msgEl.textContent = msg || "";
+			}
+
+			el.classList.remove("is-valid", "is-invalid");
+
+			if (!state) {
+
+				field.classList.remove("has-icon");
+
+				if (icon) icon.innerHTML = "";
+				return;
+			}
+
+			field.classList.add("has-icon");
+
+			if (state === "error") {
+				el.classList.add("is-invalid");
+			}
+
+			if (state === "success") {
+				el.classList.add("is-valid");
+			}
+
+			if (icon) {
+				icon.innerHTML = icons[state] || "";
+			}
+		},
+
+		clear(field, el) {
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const msgEl =
+				field.querySelector(".field-msg");
+
+			if (msgEl) msgEl.textContent = "";
+
+			el.classList.remove("is-valid", "is-invalid");
+			field.classList.remove("has-icon");
+
+			if (icon) icon.innerHTML = "";
+		}
+	};
+
+	// =========================
+	// virtual renderer (通用 display)
+	// =========================
+	renderers.virtual = {
+
+		set(field, el, state, msg) {
+
+			let msgEl =
+				field.querySelector(".field-msg");
+
+			if (!msgEl && state === "error") {
+
+				msgEl = document.createElement("div");
+				msgEl.className =
+					"field-msg text-danger small mt-1";
+
+				field.appendChild(msgEl);
+			}
+
+			if (msgEl) {
+				msgEl.textContent =
+					state === "error" ? msg : "";
+			}
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const display =
+				field.querySelector("[data-role='display']");
+
+			field.classList.remove("is-valid", "is-invalid");
+
+			icon?.classList.remove(
+				"text-success",
+				"text-danger",
+				"text-secondary",
+				"text-primary"
+			);
+
+			display?.classList.remove(
+				"bg-success",
+				"bg-danger",
+				"bg-secondary",
+				"bg-primary"
+			);
+
+			if (!state) {
+
+				icon?.classList.add("text-secondary");
+				display?.classList.add("bg-secondary");
+				return;
+			}
+
+			if (state === "error") {
+
+				field.classList.add("is-invalid");
+
+				icon?.classList.add("text-danger");
+				display?.classList.add("bg-danger");
+				return;
+			}
+
+			if (state === "success") {
+
+				field.classList.add("is-valid");
+
+				icon?.classList.add("text-success");
+				display?.classList.add("bg-success");
+				return;
+			}
+
+			if (state === "processing") {
+
+				icon?.classList.add("text-primary");
+				display?.classList.add("bg-primary");
+			}
+		},
+
+		clear(field, el) {
+
+			const msgEl =
+				field.querySelector(".field-msg");
+
+			msgEl?.remove();
+
+			field.classList.remove("is-valid", "is-invalid");
+
+			const icon =
+				field.querySelector(".field-icon");
+
+			const display =
+				field.querySelector("[data-role='display']");
+
+			icon?.classList.remove(
+				"text-success",
+				"text-danger",
+				"text-primary"
+			);
+
+			icon?.classList.add("text-secondary");
+
+			display?.classList.remove(
+				"bg-success",
+				"bg-danger",
+				"bg-primary"
+			);
+
+			display?.classList.add("bg-secondary");
+		}
+	};
+
+	// =========================
+	// fileBadge renderer（如果你未來還有 file count UI）
+	// =========================
+	renderers.fileBadge = {
+
+		set(field, el, state, msg) {
+
+			let msgEl = field.querySelector(".field-msg");
+			if (!msgEl && state === "error") {
+				msgEl = document.createElement("div");
+				msgEl.className = "field-msg text-danger small mt-1";
+				field.appendChild(msgEl);
+			}
+			if (msgEl) msgEl.textContent = state === "error" ? msg : "";
+
+			const fileIcon = field.querySelector(".bi-file-earmark, .bi-file-earmark-text");
+			const badge = field.querySelector(".file-cnt-display");
+
+			field.classList.remove("is-valid", "is-invalid");
+			if (fileIcon) fileIcon.classList.remove("text-success", "text-danger", "text-secondary");
+			if (badge) badge.classList.remove("bg-success", "bg-danger", "bg-secondary");
+
+			if (state === "error") {
+				field.classList.add("is-invalid");
+				if (fileIcon) fileIcon.classList.add("text-danger");
+				if (badge) badge.classList.add("bg-danger");
+			}
+			else if (state === "success") {
+				field.classList.add("is-valid");
+				if (fileIcon) fileIcon.classList.add("text-success");
+				if (badge) badge.classList.add("bg-success");
+			}
+			else {
+				if (fileIcon) fileIcon.classList.add("text-secondary");
+				if (badge) badge.classList.add("bg-secondary");
+			}
+			 
+		},
+
+		clear(field, el) {
+
+			const msgEl = field.querySelector(".field-msg");
+			if (msgEl) msgEl.remove();
+
+			field.classList.remove("is-valid", "is-invalid");
+
+			const fileIcon = field.querySelector(".bi-file-earmark, .bi-file-earmark-text");
+			const badge = field.querySelector(".file-cnt-display");
+
+			if (fileIcon) {
+				fileIcon.classList.remove("text-success", "text-danger");
+				fileIcon.classList.add("text-secondary");
+			}
+			if (badge) {
+				badge.classList.remove("bg-success", "bg-danger");
+				badge.classList.add("bg-secondary");
+			}
+		}
+	};
+
+	// =========================
+	// public API
+	// =========================
+	return {
+
+		register(name, renderer) {
+			renderers[name] = renderer;
+		},
+
+		resolveRenderer,
+
+		set(el, state, msg = "") {
+
+			const field =
+				el.closest(".field");
+
+			if (!field) return;
+
+			const renderer =
+				resolveRenderer(el);
+
+			renderer.set(
+				field,
+				el,
+				state,
+				msg
+			);
+		},
+
+		clear(el) {
+
+			const field =
+				el.closest(".field");
+
+			if (!field) return;
+
+			const renderer =
+				resolveRenderer(el);
+
+			renderer.clear(field, el);
+		}
+	};
+
+})();
+ 
+ 
+window.GraphV2 = (() => { 
+	let nodes = [];
+	const depIndex = new Map();
+	const nodeMap = new Map();
+	 
+	const runtimeState = new Map();
+	const versionMap = new Map();
+	const asyncCache = new Map();
+	const computedCache = new Map();
+
+	let queue = [];
+	let scheduled = false;
+
+	const runningNodes = new Map();
+	function has(id) {
+		return nodeMap.has(id);
+	}
+	// =========================================================
+	// register
+	// =========================================================
+	function register(node) {
+		nodes.push(node);
+		nodeMap.set(node.id, node);
+		for (const dep of node.deps || []) {
+			if (!depIndex.has(dep)) depIndex.set(dep, []);
+			depIndex.get(dep).push(node);
+		}
+	}
+
+	// =========================================================
+	// version
+	// =========================================================
+	const key = (s, f) => `${s}.${f}`;
+
+	function getVersion(stepKey, field) { 
+		return versionMap.get(key(stepKey, field)) || 0;
+	}
+
+	function bumpVersion(stepKey, field) {
+		const k = key(stepKey, field);
+		const v = (versionMap.get(k) || 0) + 1;
+		versionMap.set(k, v);
+		return v;
+	}
+
+	// =========================================================
+
+	// dep hash
+	// =========================================================
+
+	function depHash(stepKey, node) {
+		return (node.deps || [])
+			.map(d => getVersion(stepKey, d))
+			.join("|");
+	}
+
+
+	// =========================================================
+	// topo (FIXED SAFE)
+	// =========================================================
+	function topo(startField, stepKey) {
+		const result = [];
+		const visiting = new Set();
+		const visited = new Set();
+		const visitedNodes = new Set();
+		function dfs(field, path = []) {
+			const k = `${stepKey}.${field}`;
+
+			if (visiting.has(k)) {
+				throw new Error(`Cycle detected: ${[...path, field].join(" -> ")}`);
+			}
+
+			if (visited.has(k)) return;
+
+			visiting.add(k);
+
+			const list = depIndex.get(field) || [];
+
+			for (const n of list) {
+
+				if (n.stepKey !== stepKey) continue;
+				if (visitedNodes.has(n.id)) {
+					continue;
+				}
+
+				visitedNodes.add(n.id);
+				if (n.type === "computed" && n.target) {
+					dfs(n.target, [...path, field]);
+				}
+
+				result.push(n);
+			}
+
+			visiting.delete(k);
+			visited.add(k);
+		}
+
+		dfs(startField);
+
+		return result;
+	}
+
+	// =========================================================
+	// scheduler
+	// =========================================================
+	function scheduleRun(stepKey, field) {
+		queue.push({ stepKey, field });
+		if (scheduled) return;
+		scheduled = true;
+		queueMicrotask(() => {
+			const tasks = queue;
+			queue = [];
+			scheduled = false;
+			for (const t of tasks) {
+				exec(t.stepKey, t.field);
+			}
+		});
+	}
+
+	// =========================================================
+
+	// notify
+	// =========================================================
+	function notify(stepKey, field, value, options = {}) { 
+		const {
+			virtual = "store"
+		} = options;
+		if (virtual === "runtime") {
+			setRuntime(stepKey, field, value); 
+			return;
+		}
+		// normal flow
+		const store = AppBootstrap.get("FlowStore");
+
+		const prev = store.get(stepKey, field);
+	 
+		if (Object.is(prev, value)) return;
+		 
+		store.safeSet(stepKey, field, value);
+
+		bumpVersion(stepKey, field);
+		scheduleRun(stepKey, field);
+	}
+	//function notify(stepKey, field, value) { 
+
+	//	const store = AppBootstrap.get("FlowStore"); 
+	//	const prev = store.get(stepKey, field);
+	//	if (Object.is(prev, value)) return;
+
+	//	store.safeSet(stepKey, field, value);
+
+	//	bumpVersion(stepKey, field);
+
+	//	scheduleRun(stepKey, field);
+	//}
+
+	function batchNotify(stepKey, patch) {
+
+		const store = AppBootstrap.get("FlowStore");
+
+		const changedFields = [];
+
+		for (const [f, v] of Object.entries(patch)) {
+
+			const prev = store.get(stepKey, f);
+
+			if (Object.is(prev, v))
+				continue;
+
+			store.safeSet(stepKey, f, v);
+
+			bumpVersion(stepKey, f);
+
+			changedFields.push(f);
+		}
+
+		for (const field of changedFields) {
+			scheduleRun(stepKey, field);
+		}
+	}
+
+	// =========================================================
+	// executor
+	// =========================================================
+	async function exec(stepKey, field) {
+
+		const store = AppBootstrap.get("FlowStore");
+
+		const list = topo(field, stepKey);
+
+		for (const n of list) { 
+			const nodeKey = `${n.id}`; 
+			try { 
+				const localVersion = getVersion(stepKey, field); 
+				// =========================
+				// validation abort control
+				// =========================
+				const prev = runningNodes.get(nodeKey);
+
+				if (prev?.abort) prev.abort.abort();
+
+				const abort = new AbortController();
+
+				runningNodes.set(nodeKey, {
+					version: localVersion,
+					abort
+				});
+				// stale guard
+				//if (
+				//	(n.type === "validation" || n.type === "effect")  
+				//) {
+				//	continue;
+				//}
+
+				// =========================================================
+				// VALIDATION (FIXED)
+				// =========================================================
+				if (n.type === "validation") {
+					const target =
+						n.target ||
+						n.deps?.[0];
+
+					if (!target) continue;
+					store.setStatus(stepKey, target, "processing"); 
+					const localVersion = getVersion(stepKey, target); 
+					const cacheKey = `${n.id}`; 
+					let cached = asyncCache.get(cacheKey);
+					let promise;
+
+					if (cached && cached.version === localVersion) { 
+						promise = cached.promise; 
+					} else { 
+						promise = n.run({
+							data: store.getStep(stepKey),
+							stepKey,
+							signal: abort.signal
+						});
+
+						asyncCache.set(cacheKey, {
+							version: localVersion,
+							promise
+						});
+					}
+
+					if (abort.signal.aborted) continue;
+
+					const result = await promise;
+
+					const current = asyncCache.get(cacheKey);
+
+					if (current?.promise === promise) {
+						asyncCache.delete(cacheKey);
+					}
+
+					if (abort.signal.aborted) continue;
+
+					if (localVersion !== getVersion(stepKey, target)) {
+						continue;
+					}
+
+					if (result !== true && result?.valid !== true) {
+
+						store.setError(
+							stepKey,
+							target,
+							result.message || result
+						);
+
+						store.setStatus(
+							stepKey,
+							target,
+							"error"
+						);
+
+						break;
+					}
+
+					store.clearError(stepKey, target);
+
+
+					store.setStatus(
+						stepKey,
+						target,
+						"success"
+					);
+				}
+
+				// =========================================================
+
+				// COMPUTED (FIXED SAFE)
+				// =========================================================
+				else if (n.type === "computed") { 
+					const nodeAbort = runningNodes.get(nodeKey)?.abort; 
+					// =========================
+					// dep snapshot
+					// =========================
+					const localHash = depHash(stepKey, n); 
+					const cacheKey = `${stepKey}.${n.id}`;
+
+					const cached = computedCache.get(cacheKey);
+
+					// lazy cache
+					if (cached?.hash === localHash) {
+						continue;
+					}
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// compute
+					// =========================
+					const value = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// stale deps guard
+					// IMPORTANT
+					// =========================
+					const latestHash = depHash(stepKey, n);
+
+					if (localHash !== latestHash) {
+						continue;
+					}
+
+					// =========================
+					// cache update
+					// =========================
+					computedCache.set(
+						cacheKey,
+						{
+							hash: latestHash,
+							value
+						}
+					);
+
+					// =========================
+					// same value skip
+					// =========================
+					const prev = getRuntime(stepKey, n.target) ?? store.get(stepKey, n.target);
+
+
+					if (Object.is(prev, value)) {
+						continue;
+					}
+
+					// =========================
+					// write
+					// =========================
+					store.safeSet(
+						stepKey,
+						n.target,
+						value
+					);
+
+					bumpVersion(
+						stepKey,
+						n.target
+					);
+
+					//FieldBinder?.refreshUI?.(
+					//	stepKey,
+					//	n.target,
+					//	value
+					//);
+				}
+
+				// =========================================================
+				// EFFECT
+				// =========================================================
+				else if (n.type === "effect") {  
+					const localVersion = getVersion(stepKey, n.target); 
+					const nodeAbort = runningNodes.get(nodeKey)?.abort; 
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					const result = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// stale guard
+					if (localVersion !== getVersion(stepKey, n.target)) {
+						continue;
+					}
+
+					if (result?.patch) { 
+						batchNotify(stepKey,result.patch);
+					}
+
+				}
+
+				// =========================================================
+				// UI
+				// =========================================================
+				else if (n.type === "ui") {
+					const nodeAbort = runningNodes.get(nodeKey)?.abort;
+
+					// =========================
+					// dependency snapshot
+					// =========================
+					const localHash = depHash(stepKey, n);
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					const result = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// stale guard
+					// deps changed while awaiting
+					// =========================
+					const latestHash = depHash(stepKey, n);
+
+					if (localHash !== latestHash) {
+						continue;
+					}
+
+					// =========================
+					// optional patch
+					// =========================
+					if (result?.patch) {
+						batchNotify(stepKey,result.patch);
+					}
+				}
+
+
+				// =========================================================
+				// BIND
+				// =========================================================
+				else if (n.type === "bind") {
+					const nodeAbort =runningNodes.get(nodeKey)?.abort;
+
+					// =========================
+					// dependency snapshot
+					// =========================
+					const localHash = depHash(stepKey, n);
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					const result = await n.run({
+						data: store.getStep(stepKey),
+						stepKey,
+						signal: nodeAbort?.signal
+					});
+
+
+					if (nodeAbort?.signal.aborted) {
+						continue;
+					}
+
+					// =========================
+					// stale guard
+					// deps changed while awaiting
+					// =========================
+					const latestHash = depHash(stepKey, n);
+
+					if (localHash !== latestHash) {
+						continue;
+					}
+
+					// =========================
+					// bind patch support
+					// =========================
+					if (result?.patch) { 
+						batchNotify( stepKey, result.patch );
+					}
+				}
+			} catch (e) {
+				console.error("Graph error:", e);
+			}
+			finally { 
+				runningNodes.delete(nodeKey);
+			}
+		}
+	}
+	function clearStep(stepKey) {
+		// computed cache
+		for (const k of computedCache.keys()) { 
+			if (k.startsWith(stepKey + ".")) {
+				computedCache.delete(k);
+			}
+		}
+
+		// async cache
+		for (const k of asyncCache.keys()) { 
+			if (k.startsWith(stepKey + ".")) {
+				asyncCache.delete(k);
+			}
+		}
+
+		// running nodes
+		for (const [k, v] of runningNodes.entries()) { 
+			if (k.startsWith(stepKey + ".")) {
+				v.abort?.abort();
+				runningNodes.delete(k);
+			}
+		}
+	}
+	// =========================
+	// validate step
+	// =========================
+	async function validateStep(stepKey) { 
+		const store = AppBootstrap.get("FlowStore"); 
+		// 找出此 step 所有 validation nodes
+		const validations =
+			nodes.filter(n =>
+				n.stepKey === stepKey &&
+				n.type === "validation"
+			);
+
+		// =========================
+		// 執行 validation
+		// =========================
+		for (const n of validations) { 
+			const field = n.target || n.deps?.[0]; 
+			if (!field)
+				continue; 
+			// 觸發 validation
+			await exec(stepKey, field);
+		}
+
+		// =========================
+		// 檢查 error
+		// =========================
+		const stepErrors = store.getErrors(stepKey) || {};
+
+		for (const key in stepErrors) { 
+			if (stepErrors[key]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+	// =========================
+	// ⭐ NEW
+	// unregister step graph
+	// =========================
+	function unregisterStep(stepKey) {
+
+		// =========================
+		// remove nodes
+		// =========================
+		nodes = nodes.filter(n => n.stepKey !== stepKey);
+
+		// =========================
+		// rebuild depIndex
+		// =========================
+		depIndex.clear();
+
+		for (const n of nodes) {
+
+			for (const dep of (n.deps || [])) {
+
+				if (!depIndex.has(dep)) {
+					depIndex.set(dep, []);
+				}
+
+				depIndex.get(dep).push(n);
+			}
+		}
+
+		// =========================
+		// remove nodeMap
+		// =========================
+		for (const [k, v] of nodeMap.entries()) {
+
+			if (v.stepKey === stepKey) {
+				nodeMap.delete(k);
+			}
+		}
+
+		// =========================
+		// remove versions
+		// =========================
+		for (const k of versionMap.keys()) {
+
+			if (k.startsWith(stepKey + ".")) {
+				versionMap.delete(k);
+			}
+		}
+
+		// =========================
+		// clear runtime cache
+		// =========================
+		clearStep(stepKey);
+
+		queue = queue.filter(
+			q => q.stepKey !== stepKey
+		);
+	}
+	function setRuntime(stepKey, field, value) {
+		runtimeState.set(`${stepKey}.${field}`, value); 
+		// 只 bump graph，不寫 store
+		bumpVersion(stepKey, field);
+		scheduleRun(stepKey, field);
+	}
+
+	function getRuntime(stepKey, field) {
+		return runtimeState.get(`${stepKey}.${field}`);
+	}
+
+	function refreshUI(stepKey, field) {
+		bumpVersion(stepKey, field);
+		scheduleRun(stepKey, field);
+	}
+	return {
+		register,
+		notify,
+		batchNotify,
+		clearStep,
+		unregisterStep,
+		setRuntime, refreshUI,
+		has,
+		validateStep
+	};
+
+})();
+
+
+
+
+
+
+
+function makeKey(field, col) {
+	if (!col || col === "undefined" || col === "null") {
+		return field;
+	}
+	return `${field}.${col}`;
+}
+
+function getKey(el) {
+	const rawCol = el.dataset.col;
+	const col = rawCol && rawCol.trim() ? rawCol.trim() : null;
+	return makeKey(el.dataset.field, col);
+}
+
+function resolveFieldType(el) { 
+	if (el.dataset.type)
+		return el.dataset.type.trim().toLowerCase(); 
+	if (el.tagName === "TEXTAREA")
+		return "textarea"; 
+	if (el.tagName === "SELECT") {
+		if (el.multiple)
+			return "select-multiple";
+		return "select-one";
+	} 
+	if (el.tagName === "INPUT") {
+		return (
+			el.getAttribute("type") ||
+			"text"
+		).trim().toLowerCase();
+	} 
+	return "text";
+}
+function findField(stepKey, field) { 
+	const [fieldName, colRef] = field.split('.'); 
+	const finalCol = colRef || (typeof col !== 'undefined' ? col : null);
+
+	const selector = finalCol
+		? `[data-step='${stepKey}'][data-field='${fieldName}'][data-col='${finalCol}']`
+		: `[data-step='${stepKey}'][data-field='${fieldName}']`;
+
+	return document.querySelector(selector);
+}
+function parseRule(ruleStr) {
+
+	if (!ruleStr) {
+		return { validators: [], async: null, mapping: null };
+	}
+
+	const parts = ruleStr.split("|");
+
+	const validators = [];
+	let async = null;
+	let mapping = null;
+
+	for (const p of parts) {
+
+		// =========================
+		// async:/api
+		// =========================
+		if (p.startsWith("async:")) {
+			async = p.replace("async:", "").trim();
+			continue;
+		}
+
+		// =========================
+		// map:a=b,c=d
+		// =========================
+		if (p.startsWith("map:")) {
+
+			mapping = {};
+
+			const raw = p.replace("map:", "").split(",");
+
+			for (const item of raw) {
+
+				const [target, source] = item.split("=");
+
+				if (!target || !source) continue;
+
+				mapping[target.trim()] = source.trim();
+			}
+
+			continue;
+		}
+
+		// =========================
+		// sync validators
+		// =========================
+		validators.push(p);
+	}
+
+	return { validators, async, mapping };
+}
+function registerValidationRules(el, stepKey) {
+	const store = AppBootstrap.get("FlowStore");
+	const rawCol = el.dataset.col;
+	const col = rawCol && rawCol.trim() ? rawCol.trim() : null;
+	const key = makeKey(el.dataset.field, col);
+	const fieldType = resolveFieldType(el);
+	const renderer = el.dataset?.renderer;
+	const parsed = parseRule(el.dataset.rule);
+
+	// =========================
+	// sync validators
+	// =========================
+	parsed.validators.forEach((r, i) => {
+
+		const [name, arg] = r.split(":");
+		const fn = ValidationRules[name];
+		if (!fn) return;
+
+		GraphV2.register({
+			type: "validation",
+			stepKey,
+			deps: [key],
+			target: key,
+			id: `${stepKey}.${key}.${name}.${i}`,
+
+			run: ({ data }) => { 
+				const el = findField(stepKey, key); 
+				let val; 
+				if (el && RuntimeHelpers.isRuntime(el)) { 
+					const adapter = FieldAdapters.resolve(el); 
+					val = adapter.getValue(el);
+				}
+				else { 
+					val = data?.[key];
+				}
+				const validationResult = fn(val, { arg, type: fieldType, renderer: renderer }); 
+				if (el && window.RuntimeHelpers.isRuntime(el)) {
+					setTimeout(() => {
+						if (validationResult && typeof validationResult === "string") { 
+							FieldStatus.set(el, "error", validationResult);
+						} else if (val !== null && val !== undefined && val !== "") {
+							// 
+							FieldStatus.set(el, "success");
+						} else { 
+							FieldStatus.clear(el);
+						}
+					}, 0);
+				} 
+				return validationResult;
+				/*return fn(val, { arg, type: fieldType });*/
+			}
+		});
+	});
+
+	// =========================
+	// async
+	// =========================
+	if (parsed.async) {
+		const nodeId = `${stepKey}.${key}.async`;
+
+		if (GraphV2.has(nodeId)) return;
+		// =========================
+		// 1️⃣ validation node（只做 request）
+		// =========================
+		GraphV2.register({
+			type: "validation",
+			stepKey,
+			deps: [key],
+			target: key,
+			id: `${stepKey}.${key}.async`,
+
+			run: async ({ data, signal }) => {
+				const val = data[key];
+
+				if (isEmpty(val)) {
+
+					// ⭐ 清掉 async cache（很重要）
+					store.safeSet(stepKey, `__async.${key}`, null);
+
+					return true;
+				}
+
+				const result = await ValidationRules.async(val, {
+					url: parsed.async,
+					stepKey,
+					field: key,
+					fields: parsed.mapping,
+					data,
+					signal
+				});
+				if (result?.valid !== false) {
+					store.safeSet(
+						stepKey,
+						`__async.${key}`,
+						result
+					);
+				}
+				// ❌ 這裡只 return，不做 notify
+				return result;
+			}
+		});
+
+		// =========================
+		// 2️⃣ effect node（專門處理 mapping）
+		// =========================
+		if (parsed.mapping) {
+
+			GraphV2.register({
+				type: "effect",
+				stepKey,
+				deps: [key],
+				target: key,
+				id: `${stepKey}.${key}.async.mapping`,
+
+				run: async ({ data, signal }) => {
+
+					const val = data[key];
+
+					// =========================
+					// clear mapping when empty
+					// =========================
+					if (isEmpty(val)) {
+
+						const patch = {};
+
+						for (const targetField of Object.keys(parsed.mapping)) {
+							patch[targetField] = "";
+						}
+
+						return { patch };
+					}
+
+					const result =
+						store.get(
+							stepKey,
+							`__async.${key}`
+						);
+
+					if (!result?.valid || !result?.data)
+						return;
+
+					const patch = {};
+
+					for (const [targetField] of Object.entries(parsed.mapping)) {
+						patch[targetField] =
+							result.data[targetField] ?? "";
+					}
+
+					return { patch };
+				}
+			});
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -3,6 +3,7 @@
 git remote set-head origin -a       # 會自動偵測遠端 HEAD
 # 或手動指定 develop
 git remote set-head origin develop
+http://tw100100354.corpnet.auo.com:8085/OneSupplierPlatform/Transfer.aspx?callerId=AUO-0951092&callPhaseId=APPROVE&viewPhaseId=VIEW&formKind=AUO.FORM.314M&formNo=58&formApproveId=AUO.FMAP.25167&isBackTraceApprove=&isToolBar=&continueApprove=Y&sourceSite=AUO&muid=f07aa788-b6d5-417a-8c60-494d9faac13a&designToolVersion=3.1&fromSystem=&Scene=&sourceType=&account=bensonlee&cultureCode=zh-TW&dateFormat=yyyy-MM-dd&sourcePath=https://abpmdev.corpnet.auo.com/GBPM/bpm&CALLER_ID=AUO-0951092&CALL_PHASE_ID=APPROVE&VIEW_PHASE_ID=VIEW&FORM_KIND=AUO.FORM.314M&FORM_NO=58&LOGON_REGION=zh-TW&FORM_APPROVER_ID=AUO.FMAP.25167&EMP_ID=AUO-0951092
 
 
 驗證：

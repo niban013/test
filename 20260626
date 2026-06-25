@@ -1,0 +1,20 @@
+computed: {
+    startdate: {
+        get() {
+ console.log('getter');
+            return this.form.startdate
+                ? moment(this.form.startdate).format('YYYY-MM-DD')
+                : '';
+        },
+        set(value) {
+       console.log('setter',value);
+            this.form.startdate = value;
+        }
+    }
+}
+
+<input type="date" v-model="startdate">
+
+<div v-text="startdate"></div>
+
+<div v-text="form.startdate"></div>
